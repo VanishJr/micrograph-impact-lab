@@ -19,8 +19,15 @@ results/**/labels/
 
 # Overlays of the synthetic set are near-copies of its images, which are not redistributed (provenance unconfirmed).
 # They stay on disk for the reviewer. 316L overlays (CC BY 4.0) are committed.
+# A new synthetic iteration must be added to this list.
 results/baseline/synthetic/outputs/overlays/
-results/iter_*/outputs/overlays/
+results/iter_001/outputs/overlays/
+results/iter_002/outputs/overlays/
+results/iter_003/outputs/overlays/
+results/iter_004/outputs/overlays/
+results/iter_005/outputs/overlays/
+results/iter_009/outputs/overlays/
+results/iter_010/outputs/overlays/
 results/final_synthetic/outputs/overlays/
 
 # Local shell file with the API key: never commit it

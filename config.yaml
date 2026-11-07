@@ -38,7 +38,7 @@ eval:
 
 paths:
   # The dataset folder stays outside the repository; MICROGRAPHS_DIR overrides this default.
-  dataset: /Users/vanish/projects/hackathon_micrographs
+  dataset: ../hackathon_micrographs
   splits: data/splits.json
   results: results
   journal: JOURNAL.md

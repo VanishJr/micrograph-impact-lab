@@ -112,6 +112,7 @@ $MICROGRAPHS_DIR/
   Neither the prompts nor any generator code exist, and its licence is unknown.
   So the images are not redistributed, and no result on them is evidence about real metals.
   The one exception is the figure below, [docs/before_after_synthetic.png](docs/before_after_synthetic.png), published with the scientist's agreement.
+  The scientist also agreed to publish the per-image grain counts of the synthetic set (`per_image` in `results/*/execute.json`).
   It is used because its ground truth is exact and it has defect masks.
 - Checked against the files (all 36 complete rows):
   - `n_grains` counts all grains, edge-touching ones included.
@@ -178,6 +179,10 @@ Image: Warren et al. 2024, Zenodo 10.5281/zenodo.22039777, CC BY 4.0.*
 The size errors of the baseline and iterations 6–8 were computed before a NaN fix (one dev image has no grain off the edge).
 Recomputed without it: 69.2 %, 43.6 %, 10.7 % and 11.0 % (see JOURNAL.md).
 `max_rel_error` is unchanged in every case, because count dominates.
+
+![10 random 316L holdout images, final config, mask boundaries and program boundaries](docs/ten_random_316L_holdout.png)
+
+*10 random 316L holdout images (seed 7), final config. Thick green = mask boundaries, thin red = program. Counts match results/final_316L/execute.json.*
 
 **The final 316L config (iteration 11) was not chosen by the planner.**
 The reviewers of iterations 7 and 8 suggested `fill_boundaries=false`, which matches masks that leave boundary pixels out.
@@ -254,6 +259,7 @@ Other observations:
 - **Interior-only size on 316L.** The images are small relative to the grains. Size is measured on grains not touching the edge:
   - one dev image has none, and is left out of the size median;
   - one has only one.
+- **Ground truth.** Errors are measured against the published masks; the Zenodo record does not document how they were made.
 - **Literature.** The literature step's URLs are search results it retrieved; its text carries no per-claim citations.
 - **One method family.** Only classical watershed was tried; no learned segmentation.
 - **Hand-fixed iterations.** Iterations 11 and 12 were fixed by the outer loop (`run.py --params`), not chosen by the planner.

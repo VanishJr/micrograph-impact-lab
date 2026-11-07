@@ -17,7 +17,7 @@ name the project `micrograph-impact-lab`.
 **Read:** the lab [README](https://github.com/xemantic/claude-impact-lab-2026/blob/main/README.md),
 [RESEARCH-LOOPS.md](https://github.com/xemantic/claude-impact-lab-2026/blob/main/RESEARCH-LOOPS.md),
 the submission template and the judging skill,
-the [event presentation](https://docs.google.com/presentation/d/1P4Zf5t-wDYfVolJKKEEeF8e5_DLYYiZpZCzCV7XdRec/edit?usp=sharing),
+the event presentation,
 plenty-of-room's README, SESSION-PROMPT.md, TASKS.md, JOURNAL.md and CLAUDE.md,
 and the README of the dataset folder `hackathon_micrographs` (kept outside this repository).
 
