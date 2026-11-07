@@ -13,7 +13,7 @@ micrograph-impact-lab
 
 ```
 Ivan Logutov (@VanishJr), engineer
-Cesare Garberino (@<CESARE_HANDLE>), scientist, problem owner
+Cesare Garberino (@lnCesare), scientist, problem owner
 ```
 
 ## Field
