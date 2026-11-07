@@ -13,6 +13,7 @@ from skimage.measure import regionprops
 from skimage.segmentation import find_boundaries
 
 UM_PER_PX = 0.5
+SCRATCH, PORE = 60, 120  # codes of the synthetic set's defect masks
 
 
 def voronoi_micrograph(shape=(240, 320), n_grains=40, seed=0, noise=0.03, stretch=1.0):
@@ -32,21 +33,54 @@ def voronoi_micrograph(shape=(240, 320), n_grains=40, seed=0, noise=0.03, stretc
     return (np.clip(image, 0, 1) * 255).astype(np.uint8), labels
 
 
+def add_defects(image: np.ndarray):
+    """Plant one dark and one bright straight scratch and three dark round pores.
+
+    Returns (image, defect mask) with the synthetic set's codes: 60 = scratch, 120 = pore.
+    Positions are fixed fractions of the image size, so the answer is known.
+    """
+    from skimage.draw import disk as draw_disk, line
+    from skimage.morphology import binary_dilation, disk
+
+    image = image.copy()
+    h, w = image.shape
+    mask = np.zeros((h, w), np.uint8)
+    for (r0, c0, r1, c1), gray in [((0.13, 0.15, 0.67, 0.75), 40), ((0.87, 0.12, 0.40, 0.82), 230)]:
+        thin = np.zeros((h, w), bool)
+        rr, cc = line(int(r0 * h), int(c0 * w), int(r1 * h), int(c1 * w))
+        thin[rr, cc] = True
+        thick = binary_dilation(thin, disk(1))
+        image[thick] = gray
+        mask[thick] = SCRATCH
+    for r, c in [(0.25, 0.80), (0.75, 0.30), (0.20, 0.40)]:
+        rr, cc = draw_disk((int(r * h), int(c * w)), 5, shape=(h, w))
+        image[rr, cc] = 18
+        mask[rr, cc] = PORE
+    return image, mask
+
+
 def touches_edge(region, shape) -> bool:
     r0, c0, r1, c1 = region.bbox
     return r0 == 0 or c0 == 0 or r1 == shape[0] or c1 == shape[1]
 
 
-def write_synthetic_dataset(root: Path, images: list[tuple[str, float, int]]) -> Path:
-    """Write images [(name, corruption_level, seed)] in the layout of 90_SYNTHETIC_exact_ground_truth."""
+def write_synthetic_dataset(root: Path, images: list[tuple[str, float, int]], defects: bool = False) -> Path:
+    """Write images [(name, corruption_level, seed)] in the layout of 90_SYNTHETIC_exact_ground_truth.
+
+    With defects=True the corrupted images carry planted scratches and pores (see add_defects).
+    """
     base = root / "90_SYNTHETIC_exact_ground_truth"
-    for sub in ["corrupted", "clean", "labels_grain"]:
+    for sub in ["corrupted", "clean", "labels_grain", "artifact_mask"]:
         (base / sub).mkdir(parents=True, exist_ok=True)
     image_rows, grain_rows = [], []
     for name, level, seed in images:
         image, labels = voronoi_micrograph(seed=seed)
-        Image.fromarray(image).save(base / "corrupted" / f"{name}.png")
         Image.fromarray(image).save(base / "clean" / f"{name}.png")
+        defect_mask = np.zeros(image.shape, np.uint8)
+        if defects:
+            image, defect_mask = add_defects(image)
+        Image.fromarray(image).save(base / "corrupted" / f"{name}.png")
+        Image.fromarray(defect_mask).save(base / "artifact_mask" / f"{name}.png")
         Image.fromarray(labels).save(base / "labels_grain" / f"{name}.png")
         regions = regionprops(labels)
         interior = []

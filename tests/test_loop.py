@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import run
-from src import literature, verify
+from src import literature, plan, verify
 from src.config import load_config
 from src.llm import Claude
 from src.methods import METHODS
@@ -146,3 +146,22 @@ def test_final_runs_the_best_dev_iteration_once_on_holdout(cfg):
     assert holdout_run["split"] == "holdout"
     with pytest.raises(SystemExit, match="used once"):
         run.final(cfg)
+
+
+def test_the_planner_is_held_to_the_project_target(cfg):
+    iterate_once(cfg)
+
+    plan_json = json.loads((cfg["paths"]["results"] / "iter_001" / "plan.json").read_text())
+    assert (plan_json["metric"], plan_json["direction"], plan_json["threshold"]) == ("max_rel_error", "<=", 0.10)
+    assert "threshold" not in plan.schema()["properties"]
+
+
+def test_best_dev_iteration_reads_max_rel_error_from_execute_json(tmp_path):
+    for i, value in [(1, 0.30), (2, 0.07)]:
+        (tmp_path / f"iter_{i:03d}").mkdir()
+        (tmp_path / f"iter_{i:03d}" / "execute.json").write_text(json.dumps({"metrics": {"max_rel_error": value}}))
+    history = [
+        {"iteration": 1, "dataset": "synthetic", "metric": "max_rel_error", "value": 0.30},
+        {"iteration": 2, "dataset": "synthetic", "metric": "worst_family_rel_error", "value": 0.18},
+    ]
+    assert run.best_dev_iteration(tmp_path, history, "synthetic")["iteration"] == 2

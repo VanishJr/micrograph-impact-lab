@@ -462,3 +462,224 @@ This is a limit of the 24-image dev set, not evidence that noise does not matter
 
 **Cost:** iteration 4 $0.18 (planner 9,573 / 1,687 tokens, reviewer 13,602 / 2,910); iteration 5 $0.21 (planner 12,507 / 1,645, reviewer 13,637 / 3,545); no web searches.
 Iterations 1–5 together: about $1.47.
+
+## 2026-11-07 14:40 · iteration 6 (run.py)
+
+- Hypothesis: The best synthetic-dev configuration (gaussian sigma=2, tophat line_width_px=4, hmaxima h_px=3, min_area_px=80, exclude_edge=false, fill_boundaries=true) transfers to the real 316L dev split with max_rel_error <= 0.10. Secondary predictions: if it fails, median_count_bias is positive (over-segmentation from scratches, etch pits and annealing twins absent from the expert masks), and median_size_bias is negative with roughly half the magnitude of the count bias.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'markers': 'hmaxima', 'h_px': 3.0, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True}
+- Result: max_rel_error = 2.883116883116883, target <= 0.1: **fail**
+- Review: reject. The primary hypothesis fails decisively. On 40 real 316L dev images, max_rel_error is 2.88 against a target of 0.10, about 29× over. Only one image comes near 10%: P_04_04 on size (−0.017), and even there count error is +0.88. No image meets 10% on count. Confidence that this configuration does not transfer: about 99%.
+
+Secondary prediction 1, positive count bias, is supported. Median count bias is +2.88, and 39 of 40 images over-count (n_pred 32–121 vs n_true 6–35).
+
+Secondary prediction 2, size bias about half the count bias, is wrong as stated. Half of +2.88 would mean −1.44, which is impossible. The observed −0.43 does match the equivalent-diameter scaling 1/sqrt(1+2.88) − 1 ≈ −0.49 from the literature notes. So the evaluator's size is a diameter, and the size bias follows from the count error.
+
+Main diagnosis: mean_eq_pred is nearly constant across images (about 41–65 px), while mean_eq_true ranges over about 52–123 px. The predicted grain scale is set by the parameters, not by the micrograph. This is a pixel-scale mismatch from synthetic tuning (line_width_px=4, h_px=3, min_area_px=80 are far too small for grains about 80 px across).
+
+What the overlays show:
+- B_04_01 is badly over-split. Large grains are cut into polygonal pieces by straight watershed lines, which points to multiple h-maxima markers per grain. Diagonal polishing scratches are traced as boundaries, dark etch pits and pores get their own contours, and the wide black inter-grain bands are segmented as small grains instead of being treated as boundary.
+- RG20_3_2 shows the same pattern: straight internal cuts through big grains, small fragments in the lower left, and pores outlined.
+- U_03_03 is the best of the three. Most contours follow real dark boundaries, but there are still straight internal splits and contours around dark interstitial regions.
+- Missed boundaries and merged grains are rare in all three. The error is almost entirely over-segmentation from scratches, pits and pores, interstitial dark bands, and excess markers. Twin-like parallel straight pairs are not clearly the dominant cause here.
+
+Caveats:
+- The overlays are labelled low, middle and high corruption, but the real split has no corruption levels (by_corruption_level is empty). That label is boilerplate.
+- F_02_03 has mean_eq_true = NaN, which is a ground-truth parsing or evaluator bug.
+- B_04_01 has mean_eq_true = 23 px with n_true = 11, which is internally inconsistent: 11 grains of 23 px diameter cannot tile the image. Its mask may be partial or mislabeled.
+- max_rel_error equals the median count error, so it is a max over the two median errors, not a per-image worst case.
+
+None of these issues change the verdict. No tuning was done on the real data, so there is no leakage, and n = 40 is enough to make a 29× miss conclusive. This run says nothing about noise degradation.
+- Next: First fix the evaluator: track down the NaN mean_eq_true for F_02_03, and inspect the B_04_01 mask (23 px mean diameter with 11 grains is inconsistent). Exclude both if the masks are broken. Also confirm whether the expert masks label twin boundaries and edge grains.
+
+Then run a scale-corrected sweep on dev. Real grains are about 80 px in equivalent diameter, and the boundaries are wide dark bands rather than thin lines:
+- line_width_px: 4 -> 15. The tophat currently picks up thin scratches; it should match the 10–20 px dark grain-boundary bands.
+- h_px: 3 -> 12. Sweep {8, 12, 16, 20}. Multiple markers per grain produce the straight polygonal cuts, and with true radii of about 40 px, h=3 is far too permissive.
+- sigma: 2 -> 4. This suppresses fine polishing scratches and small etch pits before boundary detection.
+- min_area_px: 80 -> 1000. True mean grain area is about 5000 px², and pore or pit fragments and interstitial slivers are well below 1000 px².
+- exclude_edge: false -> whatever matches how the ground truth counts edge grains.
+
+Expected effect: count bias drops from about +2.9 to below +1. I put about 15% on reaching ≤ 0.10 with parameters alone, because circular pores and straight scratch segments will survive even a well-scaled watershed.
+
+If the residual is still above 0.3 after the sweep, no parameter of the existing tophat-plus-watershed method will close the gap. The pipeline then needs a new post-processing method:
+- treat large dark connected regions (interstitial bands and pits) as boundary or background rather than grains;
+- remove long, low-curvature boundary segments with weak contrast across them (scratch filter);
+- merge adjacent regions whose shared boundary has low mean darkness (region-merging RAG step).
+
+Run the synthetic fixed-geometry noise sweep separately to answer the noise question. Keep the holdout untouched.
+- Outputs: [results/iter_006/](results/iter_006/)
+
+## 2026-11-07 14:41 · iteration 7 (run.py)
+
+- Hypothesis: Scaling the pipeline to real 316L grain size (sigma 2→4, tophat line_width_px 4→15, hmaxima h_px 3→5, min_area_px 80→1500, everything else unchanged) lowers max_rel_error on the 316L dev split from 2.88 to below 1.0, yet still misses the 0.10 target: median_count_bias stays positive at +0.3 to +1.5, |median_size_bias| falls below 0.43 but stays above 0.10, and predicted mean equivalent diameter starts tracking true diameter across images instead of sitting near 41–65 px.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 4.0, 'boundary': 'tophat', 'line_width_px': 15, 'markers': 'hmaxima', 'h_px': 5.0, 'min_area_px': 1500, 'exclude_edge': False, 'fill_boundaries': True}
+- Result: max_rel_error = 0.23529411764705882, target <= 0.1: **fail**
+- Review: reject. The 0.10 target is missed: max_rel_error is 0.235. Several of the hypothesis's specific predictions are also falsified, so it does not hold as stated.
+
+What held:
+- max_rel_error fell from 2.88 to below 1.0, which supports scale mismatch as the dominant cause in iteration 6.
+- The target was still missed.
+
+What failed:
+- Median count bias is +0.235, below the predicted +0.3 to +1.5 range.
+- |median size bias| is 0.025, below the predicted 0.10 floor.
+- Predicted mean equivalent diameter does not track truth. Predictions sit in a compressed 70–108 px band (mostly 75–95) while true diameters span 52–123 px.
+  - Small-grain images are overestimated: RG28_3_4 52→72, RG25_3_1 57→87, RG7_3_4 63→95.
+  - Large-grain images are underestimated: M_01_01 123→91, RG3_2_3 114→83, RG23_2_1 102→76.
+  - So the pipeline still imposes one fixed grain scale, now just closer to the population mean.
+
+Caveats on the metric:
+- max_rel_error equals the median count error. It is a maximum over dataset medians, not a per-image maximum, so it hides large per-image errors.
+- Per image, only 9 of 40 counts fall within ±10%, and about 4 of 38 valid images have both count and size within 10% (RG12_3_1, RG14_3_2, RG7_3_2, RG8_3_3).
+- The near-zero median size bias alongside a +23% count bias contradicts the usual area-tiling coupling, where diameter scales roughly as 1/√count. Per-image pairs show the same decoupling, e.g. RG7_3_4 count +10%, size +51%. Possible causes: expert masks that do not tile the field, differences in edge or boundary-pixel handling, or min_area_px=1500 deleting small grains that exist in the ground truth. Part of the good median size may therefore be cancellation, not accuracy.
+
+Broken ground truth:
+- B_04_01: 11 grains at 23 px cannot tile the image. Its +3.5 size error is an artifact.
+- F_02_03: true diameter is NaN, and n_true=6 gives a +2.5 count error.
+- Both should be excluded. Medians are robust to them, but they make the run harder to read.
+
+Leakage: none visible. Parameters were set from iteration-6 diagnostics on the same dev split, which is mild dev overfitting but not leakage.
+
+Overlay failures:
+- RG20_3_2 (middle overlay): clear over-splitting by straight polygonal watershed cuts from multiple markers per grain. These include the vertical and horizontal cuts through the large central grain (around x≈200, y≈155–310), a vertical cut near x≈270, a horizontal cut in the lower-left grain (y≈340), and a cut near x≈175 in the lower middle. A contour also bends into the large pore at about (185,170). There is a dangling, incomplete boundary at the right edge (around x≈380, y≈95).
+- U_03_03 (right overlay): mostly faithful to the dark bands. It has a spurious vertical cut through the top grain at x≈165, and small fragments inside the dark band and pore region at upper right (x≈320–360, y≈40–80).
+- B_04_01 (left overlay): contours follow the wide dark bands well. Small pieces are carved from the dark inter-grain regions at bottom right, and some contours pass through pits rather than around them.
+- Scratches are now mostly ignored, which is an improvement over iteration 6.
+- The remaining count excess is chiefly internal straight cuts from extra h-maxima, plus dark-band fragments.
+
+Confidence:
+- About 85% that the target is genuinely unmet and that the residual is structural: the fixed pixel scale and the 5 px cap on h_px.
+- No claim about noise degradation is supported by this run.
+- Next: First, fix the evaluator:
+- Exclude or repair B_04_01 and F_02_03.
+- Check whether the expert masks tile the full field and how they treat edge grains and boundary pixels, since the count–size decoupling suggests a mismatch.
+- Report per-image pass rates (|count err| ≤ 0.1 and |size err| ≤ 0.1) alongside the median-based max_rel_error.
+
+On parameters: no single global setting of the existing knobs can fix the remaining failure. h_px is already at its 5 px cap. Raising min_area_px from 1500 to about 2500 would cut fragments but delete real grains in fine-grained images like RG28_3_4 (true mean area about 2100 px²), worsening the scale compression that already overestimates small-grain images. Raising sigma from 4 to 6 would mainly blur weak true boundaries.
+
+A new method is needed, 'watershed_adaptive', with three parts:
+1. Markers from peak_local_max on the distance transform, with min_distance = k × an estimated grain radius per image (from the median distance-transform peak or an initial over-segmentation; k around 0.6–0.8), or h set as a fraction (around 0.3–0.5) of the local distance-transform peak.
+2. A region-adjacency-graph merge that removes boundaries whose mean darkness or top-hat response is below a threshold (around 0.3–0.5 of the median boundary response). This targets the straight internal cuts seen in RG20_3_2.
+3. Reassignment of connected dark regions (bands and pores) larger than about 300 px² to boundary instead of grain.
+
+Keep sigma=4, line_width_px=15 and fill_boundaries=true, so the comparison isolates the marker and merge changes.
+
+Predicted outcome for that run: median count bias falls to about +0.05 to +0.15, and predicted diameter correlates with true diameter at r > 0.5.
+
+Do not touch the holdout. The noise question still needs a separate fixed-geometry synthetic noise sweep.
+- Outputs: [results/iter_007/](results/iter_007/)
+
+## 2026-11-07 14:43 · iteration 8 (run.py)
+
+- Hypothesis: On the 316L dev split, replacing hmaxima markers (h_px capped at 5) with large-scale distance-transform peaks (markers=peaks, min_distance=35, footprint=61), keeping sigma=4, tophat line_width_px=15, min_area_px=1500, exclude_edge=false and fill_boundaries=true from iteration 7, cuts median_count_bias from +0.235 to between -0.05 and +0.12, moves median_size_bias from -0.025 to between 0.00 and +0.12, and lowers max_rel_error from 0.235 to <= 0.15. I give about 30% to max_rel_error reaching <= 0.10.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 4.0, 'boundary': 'tophat', 'line_width_px': 15, 'markers': 'peaks', 'min_distance': 35, 'footprint': 61, 'min_area_px': 1500, 'exclude_edge': False, 'fill_boundaries': True}
+- Result: max_rel_error = 0.28174603174603174, target <= 0.1: **fail**
+- Review: reject. The hypothesis is falsified on its own terms, with about 95% confidence. It predicted median count bias between -0.05 and +0.12 and max_rel_error <= 0.15. Instead count bias got worse, rising from +0.235 to +0.282, and max_rel_error rose from 0.235 to 0.282. Only the size-bias prediction landed (+0.038, inside 0.00 to +0.12), but median absolute size error is 0.112, so size also fails the 10% bar.
+
+Count pass rate is not better than iteration 7. Excluding the broken B_04_01 and F_02_03, 7 of 38 images are within ±10% on count: C_01_02's 2 isn't in that set; the 7 are M_03_02, RG17_2_4, RG28_3_4, RG8_3_3 and RG12_3_2 within ±0.105 plus a couple near the edge, versus 9 of 40 before.
+
+The per-image data expose a deeper problem than marker spacing. Predicted mean equivalent diameter sits in a compressed band of roughly 74–107 px whatever the true size, which ranges 52–123 px. Examples:
+- RG28_3_4: true 51.6, predicted 75.5.
+- M_01_01: true 122.9, predicted 92.7.
+- RG3_2_3: true 113.6, predicted 82.8.
+So the global marker scale and min_area set the output grain size instead of the image content.
+
+Count and size errors are also decoupled in ways that cannot both reflect the same segmentation:
+- RG28_3_4 has 35 vs 35 grains yet +46% diameter.
+- RG17_2_4 has 22 vs 22 grains yet +33% diameter.
+- Many images have positive count bias and positive size bias together (G_04_04, K_03_04, P_04_04, RG25_3_1, RG7_3_4).
+Equal counts with about 2x the covered area mean either predicted grains absorb the dark boundary bands and pores that the ground truth leaves as boundary or background, or the evaluator computes count and size on different grain sets (edge grains, boundary pixels). This partly invalidates reading the size metric as a pure segmentation-quality signal.
+
+The plan's own diagnostic says that count staying above +0.15 means the excess is not from redundant markers. The overlays support a mix:
+- RG20_3_2 shows straight internal watershed cuts. A vertical cut runs through the central grain at about x=200, y=120–240. Boxy rectangular cuts split the lower-centre grains near x=170–230, y=300–390. There is another straight vertical cut on the right near x=270.
+- U_03_03 shows an artificial rectangle at the top (x≈165–225, y≈0–75) carved out of one grain. Small slivers sit inside dark triple-junction pockets, for example near (20,170) and (200,160–185).
+- B_04_01 follows the dark boundaries reasonably. Its ground truth is broken (n_true 11, mean_eq 23 px), so it says nothing quantitatively.
+- Pores, such as the large one in RG20_3_2 near (75,145), are mostly not cut through. Polishing scratches are mostly not traced either. Missed faint boundaries are rare in these three overlays.
+The failure is over-splitting by straight marker-to-marker cuts plus fragments in dark bands, not merging.
+
+Other caveats:
+- 38 usable dev images.
+- Several iterations of global tuning on the same dev split mean any future pass would be partly dev-fitted.
+- The literature notes were not retrieved, so the ASTM inter-observer figures are unverified.
+- Nothing here bears on the noise-degradation half of the question. 316L has no corruption levels, so no noise claim is supported.
+- Next: First, audit the evaluator's size definition, which is a cheap check and needed before any further tuning. For RG28_3_4 and RG17_2_4:
+- Compute total predicted grain area against total ground-truth grain area.
+- Check whether ground-truth size excludes edge grains or boundary pixels that the count includes.
+- Check whether fill_boundaries=true assigns dark-band pixels to grains that the expert masks leave as boundary.
+If the conventions differ, fix the evaluator or set fill_boundaries true -> false so area accounting matches. Otherwise size errors will stay decoupled from count errors.
+
+Second, stop tuning global marker parameters. Plainly, no parameter of the existing watershed can fix this:
+- hmaxima is capped at h_px=5.
+- peaks with min_distance=35 and footprint=61 made count worse.
+- Predicted grain size is pinned to a fixed band set by global scale knobs, so any single min_distance or min_area value trades small-grain images against large-grain ones.
+
+Implement the new method 'watershed_adaptive' with three parts:
+(1) Per-image scale. Estimate grain size from the top-hat boundary map, for example the median distance-transform maximum of connected non-boundary regions or a linear-intercept count. Set the marker h or min_distance to about 0.5x that per-image radius.
+(2) Region-adjacency-graph merge. Merge two adjacent regions when the mean top-hat or darkness response along their shared edge falls below a threshold, for example below 0.3 of the image's median boundary response. This targets the straight interior cuts seen in RG20_3_2 and U_03_03, which run across bright grain interior rather than along dark lines.
+(3) Dark-region reassignment. Reassign connected dark regions, such as pixels below the Otsu threshold with area above 300 px², to boundary rather than to grains. Then drop slivers below about 0.2x the per-image median grain area instead of the fixed min_area_px=1500.
+
+Select the merge threshold on dev. Report:
+- per-image count and size errors;
+- the correlation between predicted and true diameter, to check the compressed band is gone;
+- pass rates excluding B_04_01 and F_02_03.
+
+Keep the holdout untouched. Separately, the noise question still needs a fixed-geometry synthetic noise sweep added to the harness. Do not make any noise claim until that exists.
+- Outputs: [results/iter_008/](results/iter_008/)
+
+## 2026-11-07 14:45 · 316L, iterations 6–8: from 2.88 to 0.235; an evaluator NaN fixed
+
+**Before the runs.** The planner no longer chooses the pass threshold.
+Every iteration is judged by the project target `max_rel_error <= 0.10` (`target` in config.yaml), and the planner's hypotheses may still predict other metrics.
+`run.py --final` now reads `max_rel_error` from each iteration's `execute.json`;
+before, it would have skipped iterations 4–5, whose plan metric was `worst_family_rel_error`.
+`run.py --dataset 316L` selects the dataset without editing the config.
+
+**Runs** (`results/iter_006..008/`, 40 dev images):
+
+| Iteration | Key params | max_rel_error | Count error (bias) | Size error (bias) | Reviewer |
+|---|---|---|---|---|---|
+| 6 | synthetic best (sigma 2, tophat 4, hmaxima h 3, min_area 80) | 2.88 | 2.88 (+2.88) | 0.437 (−0.431) | reject |
+| 7 | sigma 4, tophat 15, hmaxima h 5, min_area 1500 | **0.235** | 0.235 (+0.235) | 0.114 (+0.025) | reject |
+| 8 | sigma 4, tophat 15, peaks min_distance 35, footprint 61, min_area 1500 | 0.282 | 0.282 (+0.282) | 0.112 (+0.038) | reject |
+
+What happened:
+- The synthetic parameters do not transfer: real grains are about 80 px across, with wide dark boundary bands.
+- Scaling every length up cut the error twelvefold, but every image still over-counts.
+- The reviewer of iteration 7 notes that predicted sizes sit in a compressed 70–108 px band while true sizes span 52–123 px.
+  `h_px` is at its cap of 5, and no single global setting fixes both small-grain and large-grain images.
+- Reviewers 7 and 8 also suggest `fill_boundaries=false`, which matches how the masks leave boundary pixels out; the planner has not tried it yet.
+
+**Literature for 316L (iteration 6): the sources fix works live.**
+`run.log` shows the librarian's content blocks: 2 thinking, 7 server_tool_use, 5 web_search_tool_result, 2 code_execution_tool_result, 1 text.
+That gives 0 cited URLs and 36 search-result URLs, now listed in [literature.md](results/iter_006/literature.md).
+With dynamic filtering the librarian reads results through code execution, so its text carries no citations:
+the URLs in literature.md are what it retrieved, not proof that a specific claim comes from a specific page.
+
+**Evaluator bug: NaN in the size median.**
+The reviewer flagged F_02_03 (true size NaN) and B_04_01 (true mean diameter 23 px).
+Neither mask is broken:
+- F_02_03: all 6 true grains touch the image edge, so no interior grain is left to measure size on.
+- B_04_01: 10 of its 11 grains touch the edge, and size rests on one 420 px grain.
+
+This is a limit of interior-only size on 400×300 images with grains about 80 px across.
+The NaN entered Python's `statistics.median`, whose result is then undefined.
+Fix: an image without interior true grains is left out of the size median and marked `size_undefined` (test added); `n_images_size` reports how many count.
+Recomputed from the recorded per-image errors, without the NaN (39 images for size):
+
+| Iteration | Recorded size median | Without NaN | max_rel_error |
+|---|---|---|---|
+| 6 | 0.4372 | 0.4363 | 2.8831, unchanged |
+| 7 | 0.1137 | 0.1071 | 0.2353, unchanged |
+| 8 | 0.1122 | 0.1100 | 0.2817, unchanged |
+
+The recorded files are left as they were; this table is the correction.
+
+**Cost** (usage.json):
+
+| Iteration | Planner tokens | Librarian tokens | Reviewer tokens | Cost |
+|---|---|---|---|---|
+| 6 | 15,722 / 1,668 | 21,183 / 2,062, 5 searches | 9,983 / 3,323 | $0.38 |
+| 7 | 18,822 / 2,429 | — | 11,425 / 3,930 | $0.25 |
+| 8 | 22,416 / 2,219 | — | 11,368 / 3,815 | $0.26 |
+
+Iterations 1–8: about $2.36.
+The planner's input grows with the history it sees (up to 10 past iterations).

@@ -20,3 +20,9 @@ def test_the_scanner_flags_a_planted_leak():
 @pytest.mark.parametrize("path", sorted(METHODS_DIR.glob("*.py")), ids=lambda p: p.name)
 def test_methods_do_not_touch_ground_truth(path):
     assert leaks(path.read_text()) == [], f"{path.name} mentions ground truth or the split"
+
+
+def test_only_the_evaluator_reads_the_defect_masks():
+    src = METHODS_DIR.parent
+    readers = sorted(str(p.relative_to(src)) for p in src.rglob("*.py") if "artifact_mask" in p.read_text())
+    assert readers in ([], ["evaluate.py"])

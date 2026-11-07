@@ -58,16 +58,22 @@ def run_loop(cfg: dict, n: int, dry_run: bool) -> list[dict]:
     return summaries
 
 
-def best_dev_iteration(history: list[dict], dataset: str) -> dict:
-    """The iteration with the lowest max_rel_error on the dev split of `dataset`."""
-    candidates = [
-        h for h in history
-        if h.get("dataset") == dataset and h["metric"] == "max_rel_error" and not h.get("error")
-        and isinstance(h.get("value"), (int, float))
-    ]
+def best_dev_iteration(results, history: list[dict], dataset: str) -> dict:
+    """The iteration with the lowest max_rel_error on the dev split of `dataset`.
+
+    Read from each iteration's execute.json: the summary holds whichever metric the plan chose.
+    """
+    candidates = []
+    for h in history:
+        file = results / f"iter_{h['iteration']:03d}" / "execute.json"
+        if h.get("dataset") != dataset or h.get("error") or not file.exists():
+            continue
+        value = json.loads(file.read_text()).get("metrics", {}).get("max_rel_error")
+        if isinstance(value, (int, float)):
+            candidates.append((value, h))
     if not candidates:
-        raise SystemExit(f"no successful iteration with metric max_rel_error on {dataset!r} in state.json")
-    return min(candidates, key=lambda h: h["value"])
+        raise SystemExit(f"no successful iteration with max_rel_error on {dataset!r} in state.json")
+    return min(candidates, key=lambda c: c[0])[1]
 
 
 def final(cfg: dict) -> dict:
@@ -79,7 +85,7 @@ def final(cfg: dict) -> dict:
     if dataset in finals:
         raise SystemExit(f"{final_file} already holds the holdout result for {dataset!r}; the holdout is used once")
 
-    best = best_dev_iteration(State.load(results).history, dataset)
+    best = best_dev_iteration(results, State.load(results).history, dataset)
     dev = json.loads((results / f"iter_{best['iteration']:03d}" / "execute.json").read_text())["metrics"]
     ex = execute.run(cfg, {"method": best["method"], "params": best["params"]}, results / f"final_{dataset}", split="holdout")
     if not ex["ok"]:
@@ -107,10 +113,13 @@ def main(argv=None) -> None:
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--dry-run", action="store_true", help="no API calls; canned answers, separate results dir")
     parser.add_argument("--final", action="store_true", help="run the best dev iteration once on the holdout split")
+    parser.add_argument("--dataset", choices=["synthetic", "316L"], help="override eval.dataset in config.yaml")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     cfg = load_config(args.config)
+    if args.dataset:
+        cfg["eval"]["dataset"] = args.dataset
     if args.dry_run:
         cfg["paths"]["results"] = cfg["paths"]["results"] / "_dry_run"
         cfg["paths"]["journal"] = cfg["paths"]["results"] / "JOURNAL.md"

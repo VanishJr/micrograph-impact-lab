@@ -27,6 +27,9 @@ steps:
   literature: first_only  # true: every iteration; first_only: first iteration per eval.dataset, later ones reuse its notes; false: never
   llm_review: true   # let the reviewer judge each result after the automatic checks
 
+# The project target every iteration is judged by; the planner does not choose it.
+target: {metric: max_rel_error, threshold: 0.10, direction: "<="}
+
 # What the inner loop evaluates on. Only the dev split; the holdout is for run.py --final.
 eval:
   dataset: synthetic             # synthetic | 316L

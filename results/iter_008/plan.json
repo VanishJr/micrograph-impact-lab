@@ -1,0 +1,21 @@
+{
+  "hypothesis": "On the 316L dev split, replacing hmaxima markers (h_px capped at 5) with large-scale distance-transform peaks (markers=peaks, min_distance=35, footprint=61), keeping sigma=4, tophat line_width_px=15, min_area_px=1500, exclude_edge=false and fill_boundaries=true from iteration 7, cuts median_count_bias from +0.235 to between -0.05 and +0.12, moves median_size_bias from -0.025 to between 0.00 and +0.12, and lowers max_rel_error from 0.235 to <= 0.15. I give about 30% to max_rel_error reaching <= 0.10.",
+  "rationale": "Iteration 7 showed that most of the 29x transfer miss was a pixel-scale mismatch: rescaling took max_rel_error from 2.88 to 0.235. The remaining error is almost entirely over-counting (+0.235), while median size bias is already small (-0.025).\n\nThe overlays (RG20_3_2, U_03_03) place the excess in straight internal watershed cuts, which come from several markers per grain. The h-maxima height is already at its 5 px cap, against distance-transform peak heights of about 25–60 px for real grains. That cap is the one knob the current setup cannot push further. The peaks marker mode is the only existing way to set marker scale near real grain size.\n- min_distance=35 is below the centre spacing of the smallest-grain images (true diameter about 52 px, so roughly 26 px radius and about 50 px centre-to-centre). It should merge redundant peaks inside 80–120 px grains.\n- footprint=61, the maximum, suppresses secondary maxima.\n\nEverything else is held at iteration-7 values, so any change can be attributed to marker scale alone. I am not raising min_area_px (1500 to 2500) because it would delete real grains in fine images such as RG28_3_4 (mean area about 2100 px²).\n\nRisks and how to read them:\n- If extra grains are mostly split pieces, merging them should raise mean diameter by about sqrt(1.23), roughly +11%. That could push the size error past 10% even as the count error falls, which would expose the count–size decoupling the reviewer flagged.\n- If count bias turns below -0.10, peaks are merging real grains in small-grain images.\n- If count stays above +0.15, the excess comes from dark-band and pore fragments rather than redundant markers.\n\nI will also check per-image count pass rates (iteration 7 had 9 of 40 within 10%) and whether predicted diameter still sits in a compressed band. B_04_01 and F_02_03 have broken ground truth and should be disregarded.\n\nWhichever case holds, a pass from a single global min_distance would be partly dev-fitted, and a fail would argue for a new method, 'watershed_adaptive', with three parts:\n- marker spacing or h set relative to a per-image grain-size estimate;\n- a region-adjacency-graph merge of boundaries with weak top-hat response or darkness;\n- reassignment of large dark connected regions to boundary.\n\nNoise degradation cannot be answered on 316L, which has no corruption levels. Earlier synthetic per-level tables were confounded with morphology, so no noise claim is currently supported. That needs a fixed-geometry synthetic noise sweep, which this harness does not offer. The holdout stays untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\":\"gaussian\",\"sigma\":4.0,\"boundary\":\"tophat\",\"line_width_px\":15,\"markers\":\"peaks\",\"min_distance\":35,\"footprint\":61,\"min_area_px\":1500,\"exclude_edge\":false,\"fill_boundaries\":true}",
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 4.0,
+    "boundary": "tophat",
+    "line_width_px": 15,
+    "markers": "peaks",
+    "min_distance": 35,
+    "footprint": 61,
+    "min_area_px": 1500,
+    "exclude_edge": false,
+    "fill_boundaries": true
+  }
+}

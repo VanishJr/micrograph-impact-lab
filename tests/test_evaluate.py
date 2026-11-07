@@ -79,3 +79,13 @@ def test_316L_truth_from_a_sample_mask():
     labels = label(np.array(Image.open(mask_path)) == 1, connectivity=1)
     preds = {"A_01_01": measure_grains(labels, labels.astype(float))}
     assert evaluate.score({"A_01_01": t}, preds, exclude_edge=False)["metrics"]["max_rel_error"] == pytest.approx(0, abs=1e-9)
+
+
+def test_an_image_without_interior_true_grains_is_left_out_of_the_size_median(truth):
+    t, root = truth
+    t["voronoi_01"]["mean_eq_interior"] = float("nan")  # as in 316L F_02_03: every grain touches the edge
+    preds = {n: [{**g, "eq_diameter_px": g["eq_diameter_px"] * 1.1} for g in perfect(root, n)] for n in t}
+    result = evaluate.score(t, preds, exclude_edge=False)
+    assert result["per_image"]["voronoi_01"]["size_undefined"] is True
+    assert result["metrics"]["median_size_rel_error"] == pytest.approx(0.10)
+    assert result["metrics"]["n_images_size"] == 1

@@ -1,0 +1,20 @@
+{
+  "hypothesis": "The best synthetic-dev configuration (gaussian sigma=2, tophat line_width_px=4, hmaxima h_px=3, min_area_px=80, exclude_edge=false, fill_boundaries=true) transfers to the real 316L dev split with max_rel_error <= 0.10. Secondary predictions: if it fails, median_count_bias is positive (over-segmentation from scratches, etch pits and annealing twins absent from the expert masks), and median_size_bias is negative with roughly half the magnitude of the count bias.",
+  "rationale": "The harness now runs every experiment on the dev split of the real 316L dataset, and the project target is pooled max_rel_error <= 0.10 there. worst_family_rel_error does not exist for real data, so the synthetic per-family criterion no longer decides pass or fail.\n\nWhat the synthetic iterations showed:\n- h-maxima markers fixed the anisotropic over-splitting (columnar went from 0.51 to about 0.04).\n- Moving h from 2 to 3 traded columnar and duplex merging against equiaxed and elongated excess. At h=3 the worst family was still equiaxed at 0.18.\n- The remaining errors came mostly from artifacts no parameter removes: straight scratches traced as boundaries, and pores and rings outlined as grains.\n\nThe largest open uncertainty is therefore transfer. Does the tuned pipeline work on real 316L micrographs at all, and in which direction does it fail?\n\nWhy this run is the right reference point:\n- It is a pure transfer test of the h=3 configuration, with no new tuning. The real-data result is not fitted to the dev images, and it gives a clean baseline to compare later changes against.\n- h=3 keeps columnar, duplex and fine_equiaxed within 10% on synthetic. Its pooled synthetic error was 0.066, the best pooled value seen.\n\nHow to read the bias sign:\n- Positive count bias plus negative size bias means over-segmentation. Likely causes are scratches, etch pits, or twin boundaries that the expert masks may not label. The next step would be raising h_px or sigma, or writing a boundary post-filter that removes long straight segments, rejects circular pores, and drops twin-like parallel straight boundaries.\n- Negative count bias means faint or broken etched boundaries are being missed. The next step would be line_width_px 4 -> 6, or the tophat-versus-sobel choice.\n\nConfidence that it passes: about 25%. Real 316L has annealing twins and uneven etching that the synthetic families do not model, and the synthetic residuals were already at 0.18 in the worst morphology.\n\nWhat this run cannot answer:\n- No noise-degradation claim can come from it. The real split has no controlled corruption levels.\n- The noise question still needs a fixed-geometry noise sweep on synthetic images, in which each family is rendered at every corruption level.\n\nThe holdout split stays untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 2.0, \"boundary\": \"tophat\", \"line_width_px\": 4, \"markers\": \"hmaxima\", \"h_px\": 3.0, \"min_area_px\": 80, \"exclude_edge\": false, \"fill_boundaries\": true}",
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "markers": "hmaxima",
+    "h_px": 3.0,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "hypothesis": "Scaling the pipeline to real 316L grain size (sigma 2→4, tophat line_width_px 4→15, hmaxima h_px 3→5, min_area_px 80→1500, everything else unchanged) lowers max_rel_error on the 316L dev split from 2.88 to below 1.0, yet still misses the 0.10 target: median_count_bias stays positive at +0.3 to +1.5, |median_size_bias| falls below 0.43 but stays above 0.10, and predicted mean equivalent diameter starts tracking true diameter across images instead of sitting near 41–65 px.",
+  "rationale": "**What iteration 6 established.** The synthetic-tuned configuration does not transfer to real 316L.\n- max_rel_error was 2.88 and 39 of 40 dev images over-counted.\n- Predicted mean equivalent diameter was nearly constant (about 41–65 px) while true diameter ranged over about 52–123 px. The grain scale was set by pixel-scale parameters tuned on synthetic grains of about 16–30 px, not by the micrograph.\n- The overlays showed three over-segmentation sources: straight internal cuts from several markers per grain, scratches and pits traced as boundaries, and wide dark inter-grain bands segmented as small grains.\n\n**What this run tests.** Whether that error is mainly a scale mismatch that the existing parameter ranges can correct, or whether a new method is needed. Every change pushes toward real-grain scale:\n- line_width_px=15 matches the 10–20 px dark boundary bands, so they become boundary rather than slivers.\n- sigma=4 suppresses fine polishing scratches and small pits before boundary detection.\n- h_px=5, the allowed maximum, merges more distance-transform maxima.\n- min_area_px=1500 drops pit and pore fragments well below the true mean grain area of about 5000 px².\n\nThe four knobs change together because each was off by a factor of 3–5 and a single-knob change would leave a 29× miss uninterpretable. Edge handling and fill_boundaries stay as in iteration 6, so the comparison is about scale only.\n\n**Expected outcome.** My confidence of reaching ≤ 0.10 is about 10%. The main doubt is h_px: its cap of 5 px is small relative to the ~40 px distance-transform peak radius of real grains, so irregular grains may still carry several markers. If the count stays positive but falls a lot, scale was the dominant cause.\n\n**If the residual stays above about 0.3.** The current parameter space cannot close the gap. A new method should be written with:\n- scale-relative markers: h as a fraction of the local distance-transform peak, or peaks with min_distance tied to estimated grain size;\n- a region-adjacency-graph merge that removes boundaries with weak mean darkness or contrast, which handles both polygonal over-splits and scratches;\n- reassignment of large dark connected regions (bands, pits) to boundary.\n\n**Open evaluator issues, outside my control.** F_02_03 has a NaN true diameter, and the B_04_01 mask is inconsistent (11 grains at 23 px diameter cannot tile the image). Both should be fixed or excluded.\n\n**Limits on what this run can answer.** It says nothing about noise degradation. The real split has no corruption levels, and the earlier synthetic by_level tables were confounded with morphology. Answering the noise question needs a fixed-geometry synthetic noise sweep, which this harness, now locked to 316L dev, cannot run. No noise claim is currently supported. The holdout stays untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 4.0, \"boundary\": \"tophat\", \"line_width_px\": 15, \"markers\": \"hmaxima\", \"h_px\": 5.0, \"min_area_px\": 1500, \"exclude_edge\": false, \"fill_boundaries\": true}",
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 4.0,
+    "boundary": "tophat",
+    "line_width_px": 15,
+    "markers": "hmaxima",
+    "h_px": 5.0,
+    "min_area_px": 1500,
+    "exclude_edge": false,
+    "fill_boundaries": true
+  }
+}

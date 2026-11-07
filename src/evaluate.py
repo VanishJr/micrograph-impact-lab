@@ -75,6 +75,14 @@ def truth_from_mask(path: Path) -> dict:
     }
 
 
+def _median(values: list):
+    return statistics.median(values) if values else None
+
+
+def _max(*values):
+    return max(v for v in values if v is not None)
+
+
 def score(truth_by_image: dict, predictions: dict, exclude_edge: bool) -> dict:
     per_image = {}
     for name, t in truth_by_image.items():
@@ -88,9 +96,13 @@ def score(truth_by_image: dict, predictions: dict, exclude_edge: bool) -> dict:
             "n_true": n_true,
             "n_pred": len(grains),
             "count_rel_error": (len(grains) - n_true) / n_true,
-            "mean_eq_true": t["mean_eq_interior"],
+            "mean_eq_true": t["mean_eq_interior"] if np.isfinite(t["mean_eq_interior"]) else None,
         }
-        if interior:
+        if row["mean_eq_true"] is None:
+            # every true grain touches the edge (316L: grains ~80 px in a 400x300 image): size is undefined
+            row["size_rel_error"] = None
+            row["size_undefined"] = True
+        elif interior:
             mean_pred = float(np.mean(interior)) * t["scale"]
             row["mean_eq_pred"] = mean_pred
             row["size_rel_error"] = (mean_pred - t["mean_eq_interior"]) / t["mean_eq_interior"]
@@ -103,17 +115,18 @@ def score(truth_by_image: dict, predictions: dict, exclude_edge: bool) -> dict:
 
     def medians(rows):
         count = [r["count_rel_error"] for r in rows]
-        size = [r["size_rel_error"] for r in rows]
+        size = [r["size_rel_error"] for r in rows if r["size_rel_error"] is not None]
         return {
-            "median_count_rel_error": statistics.median(abs(x) for x in count),
-            "median_size_rel_error": statistics.median(abs(x) for x in size),
-            "median_count_bias": statistics.median(count),
-            "median_size_bias": statistics.median(size),
+            "median_count_rel_error": _median([abs(x) for x in count]),
+            "median_size_rel_error": _median([abs(x) for x in size]),
+            "median_count_bias": _median(count),
+            "median_size_bias": _median(size),
             "n_images": len(rows),
+            "n_images_size": len(size),
         }
 
     metrics = medians(list(per_image.values()))
-    metrics["max_rel_error"] = max(metrics["median_count_rel_error"], metrics["median_size_rel_error"])
+    metrics["max_rel_error"] = _max(metrics["median_count_rel_error"], metrics["median_size_rel_error"])
     levels: dict[str, list] = {}
     for r in per_image.values():
         if r.get("corruption_level") is not None:
@@ -135,7 +148,7 @@ def score(truth_by_image: dict, predictions: dict, exclude_edge: bool) -> dict:
     }
     if by_family:  # the pooled medians can hide a failing morphology
         metrics["worst_family_rel_error"] = max(
-            max(f["median_count_rel_error"], f["median_size_rel_error"]) for f in by_family.values()
+            _max(f["median_count_rel_error"], f["median_size_rel_error"]) for f in by_family.values()
         )
     return {"metrics": metrics, "by_corruption_level": by_level, "by_family": by_family, "per_image": per_image}
 
