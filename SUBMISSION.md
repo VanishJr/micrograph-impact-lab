@@ -32,7 +32,7 @@ Apache 2.0 for code, CC BY 4.0 for text
 
 Grain size strongly affects the strength of metals.
 The smaller the grains, the higher the yield strength (the Hall–Petch relation),
-and it is still often measured by hand on optical micrographs.
+and grain size is still often measured by hand on optical micrographs.
 Classical segmentation (threshold + watershed) can do it, but needs hand-tuned parameters for each material and image quality.
 That tuning is manual and rarely reported with errors against ground truth.
 

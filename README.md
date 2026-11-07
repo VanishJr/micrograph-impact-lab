@@ -30,7 +30,7 @@ Scratches and pores were found only in part on the testbed, and on real images t
   - The tuning is manual and rarely reported with error bars against ground truth.
 - **Why it matters:** grain size strongly affects the strength of metals.
   The smaller the grains, the higher the yield strength (the Hall–Petch relation),
-  and it is still often measured by hand on optical micrographs.
+  and grain size is still often measured by hand on optical micrographs.
 - **How a result is checked by computation:** an evaluator compares the pipeline's grains with ground truth.
   - Real 316L stainless steel, against expert grain-boundary masks.
   - Synthetic micrographs, against exact per-grain labels and defect masks.
@@ -171,7 +171,7 @@ Image: Warren et al. 2024, Zenodo 10.5281/zenodo.22039777, CC BY 4.0.*
 | [7](results/iter_007/) | every length scaled to ~80 px grains (sigma 4, top-hat 15, h-maxima h 5, min area 1500) | planner | 23.5 % | 23.5 % (+23.5 %) | 11.4 % (+2.5 %) |
 | [8](results/iter_008/) | peak markers instead of h-maxima | planner | 28.2 % | 28.2 % (+28.2 %) | 11.2 % (+3.8 %) |
 | [11](results/iter_011/) | iteration 7 with `fill_boundaries=false` | **outer loop** (`--params`), on the reviewer's suggestion | **12.6 %** | 11.1 % (+6.5 %) | 12.6 % (−8.9 %) |
-| [12](results/iter_012/) | iteration 11 + scratch filter (min length 175 px) | outer loop (`--params`) | 16.7 % | 16.7 % (+16.7 %) | 12.1 % (−2.2 %) |
+| [12](results/iter_012/) | iteration 11 + scratch filter (min length 175 px: iteration 10's 450 px scaled by image width, a guess that did not transfer) | outer loop (`--params`) | 16.7 % | 16.7 % (+16.7 %) | 12.1 % (−2.2 %) |
 | [**holdout**](results/final.json) | iteration 11's config, run once | — | **17.4 %** | 17.4 % (+9.1 %) | 16.3 % (−10.7 %) |
 
 The size errors of the baseline and iterations 6–8 were computed before a NaN fix (one dev image has no grain off the edge).

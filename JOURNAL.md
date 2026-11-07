@@ -1033,3 +1033,8 @@ The README now notes this, next to the recorded values (69.2 % for the baseline;
 **Hall–Petch line checked by the scientist.**
 "Why it matters" in README.md and SUBMISSION.md now says that grain size strongly affects the strength of metals, and that the smaller the grains, the higher the yield strength (the Hall–Petch relation).
 It no longer says "strength and toughness".
+"and it is" became "and grain size is", so the sentence no longer reads as if the Hall–Petch relation were measured by hand.
+
+**The 175 px scratch threshold of iteration 12** is labelled in the README as what it was:
+an engineering guess (iteration 10's 450 px scaled by image width) that did not transfer.
+It made iteration 12 worse and is not in the final config, so it needs no check by the scientist.
