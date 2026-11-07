@@ -1,0 +1,8 @@
+2026-11-07 14:14:59,776 INFO run: iteration 2
+2026-11-07 14:15:12,580 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:15:12,611 INFO src.plan: plan: Spacing markers further apart and smoothing more (sigma=2, min_distance=14, footprint=29, min_area_px=80) cuts the dev max_rel_error from 0.333 to <= 0.20, but columnar_duplex and elongated_single still over-count by more than 50% while fine_equiaxed begins to under-count, i.e. marker-spacing parameters alone cannot reach 10%. -> watershed({'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'min_distance': 14, 'footprint': 29, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True})
+2026-11-07 14:15:12,611 INFO src.literature: literature: skipped (first_only), reusing iter_001 notes for synthetic
+2026-11-07 14:15:19,326 INFO src.execute: execute: ok=True metrics={'median_count_rel_error': 0.07610460178720399, 'median_size_rel_error': 0.047923421482109624, 'median_count_bias': 0.05171117166212534, 'median_size_bias': -0.02455193425699104, 'n_images': 24, 'max_rel_error': 0.07610460178720399}
+2026-11-07 14:15:57,815 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:15:57,819 INFO src.verify: verify: max_rel_error = 0.07610460178720399 (target <= 0.2), passed=True
+2026-11-07 14:15:57,822 INFO src.record: record: iteration 2 saved

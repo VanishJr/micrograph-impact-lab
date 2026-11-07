@@ -9,7 +9,7 @@ from skimage.color import rgb2gray
 from skimage.feature import peak_local_max
 from skimage.filters import gaussian, median, sobel, threshold_otsu
 from skimage.measure import label
-from skimage.morphology import black_tophat, disk, remove_small_objects
+from skimage.morphology import black_tophat, disk, h_maxima, remove_small_objects
 from skimage.segmentation import clear_border, relabel_sequential
 from skimage.segmentation import watershed as skwatershed
 
@@ -21,13 +21,19 @@ DEFAULTS = {
     "sigma": 1.0,
     "boundary": "tophat",
     "line_width_px": 4,
+    "markers": "peaks",
+    "h_px": 2.0,
     "min_distance": 8,
     "footprint": 15,
     "min_area_px": 40,
     "exclude_edge": False,
     "fill_boundaries": True,
 }
-CHOICES = {"denoise": ("none", "gaussian", "median"), "boundary": ("threshold", "sobel", "tophat")}
+CHOICES = {
+    "denoise": ("none", "gaussian", "median"),
+    "boundary": ("threshold", "sobel", "tophat"),
+    "markers": ("peaks", "hmaxima"),
+}
 
 
 @register
@@ -35,7 +41,7 @@ def watershed(images, params, out_dir, overlay=()):
     """Segment grains with a classical pipeline and measure each one, in pixels.
 
     Pipeline: grayscale -> denoise -> boundary map -> distance transform of the non-boundary pixels
-    -> one marker per local maximum -> watershed -> drop small regions -> (optional) drop edge grains.
+    -> markers on the distance transform -> watershed -> drop small regions -> (optional) drop edge grains.
     Params (all optional, defaults in brackets):
     - denoise: "none" | "gaussian" | "median" ["gaussian"]
     - sigma: 0.5-5, gaussian sigma or median disk radius in px [1.0]
@@ -44,13 +50,19 @@ def watershed(images, params, out_dir, overlay=()):
         "sobel": gradient magnitude above its Otsu threshold (responds to every edge, incl. scratches);
         "tophat": black top-hat, i.e. dark lines thinner than line_width_px, whatever the grain's gray level.
     - line_width_px: 1-15, disk radius of the top-hat; boundaries wider than this are missed [4]
-    - min_distance: 2-60 px, minimum distance between two markers; larger merges grains, smaller over-segments them [8]
-    - footprint: 3-61 px, odd, window in which a marker must be the maximum [15]
+    - markers: how grains are seeded on the distance transform ["peaks"]
+        "peaks": one marker per local maximum, at least min_distance apart (elongated grains get several);
+        "hmaxima": one marker per maximum that rises at least h_px above its surroundings, whatever the spacing,
+        so a long grain whose ridge is nearly flat gets one marker. min_distance and footprint are ignored.
+    - h_px: 1-5 px, height for "hmaxima"; larger merges more [2.0]
+    - min_distance: 2-60 px, "peaks" only: minimum distance between two markers; larger merges grains, smaller over-segments them [8]
+    - footprint: 3-61 px, odd, "peaks" only: window in which a marker must be the maximum [15]
     - min_area_px: 0-5000, regions smaller than this are dropped [40]
     - exclude_edge: drop grains touching the image edge [false]
     - fill_boundaries: true assigns boundary pixels to the nearest grain, tiling the image;
         false leaves boundary pixels unassigned [true]
-    Writes a label image per input to out_dir/labels/ and a contour overlay JPEG for each name in `overlay`.
+    Only the params above are accepted; any other key fails the run.
+    Writes a label image per input to out_dir/labels/; the loop itself picks the few images that get contour drawings.
     """
     unknown = set(params) - set(DEFAULTS)
     if unknown:
@@ -99,11 +111,14 @@ def segment(raw: np.ndarray, p: dict) -> tuple[np.ndarray, np.ndarray]:
 
     interior = ~boundary
     distance = ndi.distance_transform_edt(interior)
-    size = int(p["footprint"]) | 1
-    peaks = peak_local_max(distance, min_distance=int(p["min_distance"]),
-                           footprint=np.ones((size, size)), labels=label(interior), exclude_border=False)
-    markers = np.zeros(distance.shape, dtype=np.int32)
-    markers[tuple(peaks.T)] = np.arange(1, len(peaks) + 1)
+    if p["markers"] == "hmaxima":
+        markers = label(h_maxima(distance, float(p["h_px"])).astype(bool) & interior)
+    else:
+        size = int(p["footprint"]) | 1
+        peaks = peak_local_max(distance, min_distance=int(p["min_distance"]),
+                               footprint=np.ones((size, size)), labels=label(interior), exclude_border=False)
+        markers = np.zeros(distance.shape, dtype=np.int32)
+        markers[tuple(peaks.T)] = np.arange(1, len(peaks) + 1)
     labels = skwatershed(-distance, markers, mask=None if p["fill_boundaries"] else interior)
 
     if p["min_area_px"] > 0:

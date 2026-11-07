@@ -53,7 +53,8 @@ The method only segments and measures; a separate evaluator compares its grains 
 Propose the single next experiment that most reduces uncertainty about the research question.
 - hypothesis: one falsifiable sentence.
 - rationale: why this experiment now, given the past iterations.
-- method and params_json: one of the methods above, and its parameters as a JSON object string.
+- method and params_json: one of the methods above, and its parameters as a JSON object string,
+  using only the params its description lists (any other key fails the run).
 - metric, threshold, direction: the metric the method reports that decides the outcome,
   and the value that counts as success (metric >= threshold or metric <= threshold).
 If none of the methods can test what is needed next, choose the closest one,

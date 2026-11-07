@@ -1,0 +1,20 @@
+[
+  {
+    "role": "planner",
+    "model": "claude-opus-5-5",
+    "input_tokens": 1640,
+    "output_tokens": 485
+  },
+  {
+    "role": "librarian",
+    "model": "claude-opus-5-5",
+    "input_tokens": 132210,
+    "output_tokens": 5046
+  },
+  {
+    "role": "reviewer",
+    "model": "claude-opus-5-5",
+    "input_tokens": 10597,
+    "output_tokens": 3094
+  }
+]

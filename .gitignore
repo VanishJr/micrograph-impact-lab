@@ -22,3 +22,6 @@ results/**/labels/
 results/baseline/synthetic/outputs/overlays/
 results/iter_*/outputs/overlays/
 results/final_synthetic/outputs/overlays/
+
+# Local shell file with the API key: never commit it
+.zshrc

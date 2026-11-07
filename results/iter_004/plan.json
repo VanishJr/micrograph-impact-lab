@@ -1,0 +1,20 @@
+{
+  "hypothesis": "Switching from distance-transform 'peaks' markers to 'hmaxima' markers (h_px=2), with everything else held at the iteration-2 settings (gaussian sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false, fill_boundaries=true), cuts worst_family_rel_error on the synthetic dev split from about 0.51 (columnar_duplex in iteration 2) to <= 0.20, while fine_equiaxed stays within 10% on count.",
+  "rationale": "Iterations 1 and 2 point to one dominant failure. Isotropic 'peaks' markers put several seeds along the flat distance-transform ridge of elongated grains. At min_distance=14, columnar_duplex over-counted by 51% and elongated_single by 38%, while fine_equiaxed (about 16 px grains) was already under-counting by 2–7.5%. No single min_distance can satisfy both.\n\nThe method now offers markers='hmaxima', which gives one seed per maximum rising at least h_px above its surroundings, whatever the spacing. This is exactly the fix proposed in iterations 1 and 2, so testing it directly is more informative than re-running the failed min_distance=22 bracket (iteration 3, which broke on an invalid 'overlay' key that is not repeated here).\n\nThis is a single-variable change from iteration 2: marker method only. h_px=2 is the default. Ridges of grains about 15 px wide should vary by less than 2 px along their length, so they get one seed. Fine grains have centre heights of about 6–8 px with boundary saddles near 0, so they should still separate.\n\nThe decision metric is worst_family_rel_error rather than pooled max_rel_error, because iteration 2 showed the pooled median (0.076) can pass while one morphology fails at 51%.\n\nPredictions and confidence:\n- worst family <= 0.20: about 55%.\n- Every family <= 0.10: about 20%. Hmaxima does not address scratches traced as straight boundaries or pores and rings outlined as grains, both seen in duplex_50_02 and minor_phase_15_04.\n- Residual failure: if worst_family_rel_error stays above 0.20, read by_family biases to see which applies:\n  - Positive count bias that persists in columnar or elongated means the ridges are noisier than assumed; next try h_px=3–4.\n  - Negative bias in fine_equiaxed means h merges small grains; next try h_px=1–1.5.\n  - Errors concentrated in scratch- or pore-heavy images point to a new method being needed: a boundary post-filter that removes long straight segments (Hough or line-length test) and rejects pores by circularity and intensity. None of the current params can do this.\n\nNoise trends will be read only within a family via by_family[f].by_level, since corruption level is confounded with morphology. No noise claim will be made from this run. The holdout and the real 316L images stay untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 2.0, \"boundary\": \"tophat\", \"line_width_px\": 4, \"markers\": \"hmaxima\", \"h_px\": 2.0, \"min_area_px\": 80, \"exclude_edge\": false, \"fill_boundaries\": true}",
+  "metric": "worst_family_rel_error",
+  "threshold": 0.2,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "markers": "hmaxima",
+    "h_px": 2.0,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true
+  }
+}

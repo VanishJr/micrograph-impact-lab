@@ -1,0 +1,8 @@
+2026-11-07 14:17:38,651 INFO run: iteration 4
+2026-11-07 14:17:55,558 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:17:55,587 INFO src.plan: plan: Switching from distance-transform 'peaks' markers to 'hmaxima' markers (h_px=2), with everything else held at the iteration-2 settings (gaussian sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false, fill_boundaries=true), cuts worst_family_rel_error on the synthetic dev split from about 0.51 (columnar_duplex in iteration 2) to <= 0.20, while fine_equiaxed stays within 10% on count. -> watershed({'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'markers': 'hmaxima', 'h_px': 2.0, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True})
+2026-11-07 14:17:55,587 INFO src.literature: literature: skipped (first_only), reusing iter_001 notes for synthetic
+2026-11-07 14:18:04,042 INFO src.execute: execute: ok=True metrics={'median_count_rel_error': 0.07948470448470449, 'median_size_rel_error': 0.06082109767788345, 'median_count_bias': 0.07948470448470449, 'median_size_bias': -0.06082109767788345, 'n_images': 24, 'max_rel_error': 0.07948470448470449, 'worst_family_rel_error': 0.20385906040268456}
+2026-11-07 14:18:36,767 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:18:36,770 INFO src.verify: verify: worst_family_rel_error = 0.20385906040268456 (target <= 0.2), passed=False
+2026-11-07 14:18:36,771 INFO src.record: record: iteration 4 saved

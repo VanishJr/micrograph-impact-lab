@@ -119,3 +119,346 @@ the parameters do not transfer, which is what the loop is for.
 
 **State:** 27 tests pass (`uv run pytest`); `uv run python run.py --dry-run` runs watershed on the 24 synthetic dev images and reproduces the baseline (0.333).
 Not done: live run (P-3), 316L tuning (T-2), holdout exam (T-3).
+
+## 2026-11-07 14:04 · iteration 1 (run.py)
+
+- Hypothesis: The default watershed pipeline (gaussian sigma=1, tophat line_width_px=4, min_distance=8, footprint=15, min_area_px=40, fill_boundaries=true) reaches max_rel_error <= 0.10 on the synthetic dev split.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 1.0, 'boundary': 'tophat', 'line_width_px': 4, 'min_distance': 8, 'footprint': 15, 'min_area_px': 40, 'exclude_edge': False, 'fill_boundaries': True}
+- Result: max_rel_error = 0.33314633755409523, target <= 0.1: **fail**
+- Review: reject. The hypothesis fails clearly, and the result is credible. max_rel_error is 0.333 against a target of 0.10. The failure is not borderline or a fluke of one image: all 24 dev images over-count (count bias positive in 24/24) and under-size (size bias negative in 24/24). The size metric appears to be mean equivalent diameter, and its error is roughly half the count error, which is what over-splitting predicts. I see no sign of leakage, since the pipeline is untrained and the predictions are far from the truth.
+
+Error by morphology:
+- columnar_duplex: count +120% to +282%.
+- elongated_single: count +138% to +192%.
+- equiaxed, duplex_50 and minor_phase: +15% to +65%.
+- fine_equiaxed is closest, at +11% to +25%. Even there, only 0 of 4 images meet 10% on count.
+
+What the overlays show:
+- **Over-splitting (dominant failure).** In columnar_duplex_00, almost every elongated grain is cut by a 'ladder' of short vertical red lines (877 predicted vs 258 true). Distance-transform peaks spaced about 8 px apart along the long axis each become a marker. Smaller ladder cuts appear in thin or elongated grains in duplex_50_02 and minor_phase_15_04, for example near (400,215), (830,520) and (690,620).
+- **Scratches traced as boundaries.** duplex_50_02 has two long, near-vertical red lines crossing many grains near x of about 480–620. minor_phase_15_04 has several parallel diagonal red lines from roughly (500,760) to (790,70) and (650,760) to (1000,100), which slice grains in two. A dark diagonal scratch in the lower left of columnar_duplex_00 is also partly traced.
+- **Pores and round artifacts outlined as grains.** Red circles appear at about (200,185), (237,563), (907,680) and (0,300) in minor_phase_15_04, and at (587,572) in duplex_50_02. Small dark pores also get short spur boundaries.
+- **Missed boundaries.** I see few. Boundaries between grains of similar intensity are mostly found, so under-segmentation is not the issue here.
+
+Noise degradation cannot be read from this run. by_corruption_level is confounded with morphology. The worst level, 0.15, contains only columnar and elongated images (n=3). Within a single morphology the trend is weak or flat: equiaxed goes 0.31 → 0.65 → 0.41 → 0.44, and minor_phase goes 0.15 → 0.30 → 0.31 → 0.35. Each level has only 3–5 images. Whether edge grains count in the ground truth (exclude_edge=false) is unverified, but that effect is a few percent at most and cannot explain errors of 30% to 280%.
+
+Confidence that the defaults do not meet 10%: high (>95%). Confidence in the failure diagnosis: about 80%.
+- Next: Run a small grid on the synthetic dev split. Report per-morphology results as well as per-corruption results, and hold morphology fixed when describing noise trends.
+
+1. **min_distance: 8 → {12, 16}.** True mean equivalent diameter is about 22–31 px, except fine_equiaxed at about 16 px. A spacing of 8 allows several markers per grain. Expect fine_equiaxed to start under-counting at 16, so watch that tradeoff.
+2. **footprint: 15 → 25.** This suppresses secondary distance-transform maxima within a grain.
+3. **sigma: 1.0 → 2.0.** This weakens thin scratches before the top-hat step. Also try **line_width_px: 4 → 3** if the boundaries in the ground truth are about 2–3 px wide. A narrower top-hat may still pick up scratches, so check the overlays.
+4. **min_area_px: 40 → 80.** The smallest real grains are about 200 px², so this is safe and removes slivers and pore fragments.
+
+State plainly: I expect min_distance and footprint alone cannot fix the columnar and elongated images. In grains with an aspect ratio around 4:1 and width around 15 px, the distance transform has a ridge with many peaks along its length. Any min_distance large enough to suppress them (more than about 40 px) will merge the fine equiaxed grains. If the grid leaves columnar or elongated count error above about 50%, change the marker method rather than the parameters, in one of two ways:
+- **h-maxima markers** on the distance transform (h ≈ 2–3 px), which merge peaks along a ridge regardless of spacing.
+- **Connected-component markers**, taken from grain interiors after thresholding the top-hat boundary map, with no distance-transform split.
+
+Scratches crossing grains need a separate fix, because tuning thresholds will not remove straight lines. Either remove long straight boundary segments, for example a Hough or line-length filter on the boundary map before watershed, or require a minimum intensity contrast across each boundary.
+
+Do not touch the holdout split, and do not test the real 316L images, until synthetic dev count error is below about 15% on most morphologies.
+- Outputs: [results/iter_001/](results/iter_001/)
+
+## 2026-11-07 14:15 · Iteration 1 reviewed: cost, a sources bug, fixes before iterations 2–3
+
+**First live run (P-3).** The developer ran `uv run python run.py -n 1`
+(an earlier attempt from the Claude Code shell had no credentials and stopped at the first call, unbilled; `run.log` shows both starts).
+Result: `max_rel_error` = 0.333, identical to the baseline (same default params); reviewer verdict **reject**
+([verify.json](results/iter_001/verify.json)).
+
+**Cost**, from [usage.json](results/iter_001/usage.json), at Claude Opus 5.5 list prices ($4 / $20 per million input / output tokens, web search $10 per 1,000):
+
+| Role | Input tokens | Output tokens | Cost |
+|---|---|---|---|
+| planner | 1,640 | 485 | $0.016 |
+| librarian | 132,210 | 5,046 | $0.63 |
+| reviewer (3 overlay images) | 10,597 | 3,094 | $0.10 |
+| **total** | 144,447 | 8,625 | **$0.75** |
+
+There were also at most 5 web searches (`max_searches`; the notes say all 5 were used), so ≤ $0.05.
+Total about $0.80, 80 % of it the literature step.
+`usage.json` did not record the search count; it does from now on (`web_search_requests`).
+
+**Reviewer's diagnosis** (verify.json):
+- All 24 dev images over-count and under-size.
+- Distance-transform peaks cut elongated grains into "ladders": columnar_duplex count +120 to +282 %, elongated_single +138 to +192 %.
+- Scratches and pores are traced as boundaries.
+- The noise trend cannot be read across corruption levels, which mix morphologies.
+
+It proposed this grid:
+- `min_distance` 8 → 12–16
+- `footprint` 15 → 25
+- `sigma` 1 → 2
+- `line_width_px` 4 → 3
+- `min_area_px` 40 → 80
+
+And, if the grid leaves columnar and elongated count error above ~50 %, h-maxima markers instead of peak markers.
+
+**Bug: "0 sources".**
+[literature.md](results/iter_001/literature.md) cites papers in its text, but its source list is empty:
+the code read URLs only from text-block citations,
+and with `web_search_20260209` those were empty in this run.
+Fix: `src/llm.py` also collects URLs from `web_search_tool_result` blocks, listed separately as "retrieved, not cited",
+and logs the content block types of each call so the next librarian run shows where the URLs are (`tests/test_llm.py`, fake response).
+Iteration 1's literature.md is left as recorded; its claims have no captured URLs.
+
+**Changes:**
+- `steps.literature: first_only` now means the first iteration *per dataset*, so the 316L switch gets its own search.
+- The evaluator adds `by_family`, with the noise trend per family (`by_family[f].by_level`), as the reviewer asked.
+- `.zshrc` (a local file with the API key, used to run the loop from the Claude Code shell) is gitignored.
+
+## 2026-11-07 14:15 · iteration 2 (run.py)
+
+- Hypothesis: Spacing markers further apart and smoothing more (sigma=2, min_distance=14, footprint=29, min_area_px=80) cuts the dev max_rel_error from 0.333 to <= 0.20, but columnar_duplex and elongated_single still over-count by more than 50% while fine_equiaxed begins to under-count, i.e. marker-spacing parameters alone cannot reach 10%.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'min_distance': 14, 'footprint': 29, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True}
+- Result: max_rel_error = 0.07610460178720399, target <= 0.2: **pass**
+- Review: reject. The automatic check passed (max_rel_error 0.076 <= 0.20), but the hypothesis as stated is partly refuted, and the headline metric hides the failure the research question cares about.
+
+**Prediction by prediction**
+- (1) Error falls to <= 0.20: met. However, max_rel_error is the larger of two medians pooled over 24 images, not the worst image or worst family. 0.076 must not be read as reaching the 10% target.
+- (2) columnar_duplex over-counts by more than 50%: met only barely. The family median is 0.514, and per image it is 0.48, 0.72, 0.48 and 0.54, so two of four images are below 50%.
+- (2) elongated_single over-counts by more than 50%: refuted. All four images are at 0.35–0.47 (median 0.378).
+- (3) fine_equiaxed turns to under-counting: met. All four images are negative (−0.02 to −0.075). Note this is still within 10%.
+
+**Families outside 10%**
+- columnar_duplex: count 51%, size 21%.
+- elongated_single: count 38%, size 17%.
+- equiaxed_single: count 12% median, 22.6% on image 02.
+- minor_phase_15_05 is also outside, at −11.5%.
+
+The qualitative conclusion, that marker-spacing knobs cannot reach 10% on anisotropic morphologies, is supported, at about 80% confidence. The specific quantitative claim is not.
+
+**Noise trend**
+The by_corruption_level table cannot be used for a noise claim. Family and level are confounded: level 0.15 holds only columnar, elongated and fine images, n = 3–5 per level. Within each family there is no monotonic trend; for example, columnar is worst at 0.35 and elongated is worst at 0.15. Morphology, not noise, drives the error. No noise-degradation claim is supported yet.
+
+**Overlay failures**
+- columnar_duplex_00: the dominant failure is over-splitting. Nearly every elongated grain is cut by short vertical red segments, because distance-transform peaks are spaced along the long axis. This matches the +48% count and the −19% size error. The bright diagonal scratch on the left is mostly not traced. A few small dark pores near the left and bottom-left edges sit on contours.
+- duplex_50_02: a long straight red line runs from about x≈600 at the top to x≈490 at the bottom. It is a dark scratch traced as a boundary and splits several grains. There is a small closed circle near (585, 572), a pore or ring artifact taken as a grain. There are also short dangling spurs and staircase fragments near the centre. The count error is 0.3%, but that comes from cancelling errors, not correct segmentation.
+- minor_phase_15_04: a long diagonal scratch from about (910, 290) to (350, 700) is traced as a boundary. Red circles enclose ring or pore artifacts near (200, 190), (0, 300) and (235, 565). Many dangling spurs are attached to pores. Small extra regions appear in the dark shading patch at bottom-centre and bottom-right. Again, the near-zero count error (−0.5%) hides compensating split and merge errors.
+
+No leakage is evident; the evaluator compares against per-grain ground truth. The concerns are n=4 per family and the pooled-median metric.
+- Next: Change the decision metric before any further tuning, then replace the marker method; parameter tuning cannot fix the failure.
+
+**1. Change the decision metric**
+Score = max over families of median(|count_rel_error|, |size_rel_error|). Also report the 90th-percentile per-image error. Under this score the current run scores 0.514, not 0.076.
+
+**2. Why no parameter of the existing watershed can fix it**
+- columnar and elongated need wider marker spacing, roughly min_distance 14 -> ~22.
+- fine_equiaxed needs narrower spacing; it already under-counts at 14, with grains about 16 px across.
+- A single isotropic min_distance cannot satisfy both.
+
+**3. New method: interior-component markers**
+- Threshold the top-hat boundary response (Otsu or a fixed percentile).
+- Take connected components of non-boundary pixels, after a 1–2 px erosion, as markers.
+- Watershed on the boundary response.
+- This follows the visible closed boundaries instead of distance-transform peaks, so elongated grains are not cut along their long axis.
+- Fallback if boundaries are broken: h-maxima on the distance transform with h = 2–3 px instead of min_distance/footprint, with min_distance 14 -> 8 so h controls splitting.
+
+**4. Scratch rejection**
+Remove boundary segments that are straight (Hough or skeleton fit residual < 1.5 px) and long (> 80 px), and that cut through grain interiors. Or require mean intensity contrast across a boundary > k·σ_noise before merging regions.
+
+**5. Pore and ring rejection**
+Drop regions with circularity > 0.85 and area < 400 px², or regions whose mean intensity is far below their neighbours. Fill dark pore pixels into the surrounding grain.
+
+**6. Keep everything else fixed**
+Keep sigma=2, line_width_px=4 and min_area_px=80 so the change is attributable to the marker method. Evaluate per-family on dev.
+
+**7. Noise sweep, only after all families are within 10%**
+Render each family at all corruption levels with fixed geometry, so noise is not confounded with morphology. Leave the holdout and the real 316L images untouched until then.
+- Outputs: [results/iter_002/](results/iter_002/)
+
+## 2026-11-07 14:16 · iteration 3 (run.py)
+
+- Hypothesis: With isotropic marker spacing raised past the fine-grain diameter (sigma=2, min_distance=22, footprint=45, min_area_px=80), the pooled dev max_rel_error rises to >= 0.10 compared with 0.076 in iteration 2, and the family medians split two ways: columnar_duplex and elongated_single count error falls below about 30% but stays above 10%, while fine_equiaxed under-counts by more than 20% and equiaxed_single turns to under-counting. This would show that no single min_distance/footprint setting puts every family within 10%.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'min_distance': 22, 'footprint': 45, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True, 'overlay': ['columnar_duplex_00', 'minor_phase_15_04', 'duplex_50_02']}
+- Result: max_rel_error = None, target >= 0.1: **fail** (ValueError: unknown params ['overlay']; allowed: ['boundary', 'denoise', 'exclude_edge', 'fill_boundaries', 'footprint', 'line_width_px', 'min_area_px', 'min_distance', 'sigma'])
+- Review: inconclusive. The run never executed. The evaluator rejected the params with 'ValueError: unknown params [overlay]', after 0.02 s. There are no metrics, no by_family medians and no overlay images, so the hypothesis cannot be tested in either direction. That hypothesis was pooled max_rel_error >= 0.10, with columnar and elongated over-counting easing to 10–30% and fine_equiaxed and equiaxed_single swinging to under-counting. Nothing can be said about merged grains, over-split grains, scratches or pores taken as boundaries, or missed boundaries, because no segmentation was produced. The failure is a plumbing error, not a scientific result. 'overlay' was placed inside params_json, but the method's allowed keys are only boundary, denoise, exclude_edge, fill_boundaries, footprint, line_width_px, min_area_px, min_distance and sigma. The evidence therefore neither supports nor refutes the claim that no single isotropic min_distance/footprint setting puts every family within 10%; my confidence in any conclusion from this iteration is 0%. Two issues with the plan itself remain. First, the registered decision rule is pooled max_rel_error >= 0.10, but the hypothesis is about per-family medians. A pooled value >= 0.10 could come from one family failing badly, not the predicted two-way split, so the family-level predictions must be checked against by_family in execute.json, not the pooled number. Second, the plan's prior of about 60% is a judgement and is not yet backed by data.
+- Next: Re-run the identical experiment with 'overlay' removed from params, and pass the overlay image IDs through whatever separate execute field the harness provides, or omit them. Keep every other value unchanged so the comparison with iteration 2 stays a single-variable change in marker spacing: denoise=gaussian, sigma=2.0, boundary=tophat, line_width_px=4, min_distance: 14 -> 22, footprint: (iteration-2 value) -> 45, min_area_px=80, exclude_edge=false, fill_boundaries=true. Judge the outcome on by_family medians of count error and mean-size error. Check that columnar_duplex and elongated_single fall to 10–30% over-count, and that fine_equiaxed under-counts by more than 20% while equiaxed_single flips to under-counting. Read any noise trend only within a family, via by_family[f].by_level. If the predicted split appears, that is evidence the isotropic min_distance/footprint knobs cannot meet 10% on every morphology. The next method would then be interior-component markers taken from connected non-boundary regions of the thresholded top-hat map, with h-maxima on the distance transform as the fallback, plus filters that reject long straight segments (scratches) and use circularity and intensity to reject pores and rings. Keep the holdout split and the real 316L images untouched.
+- Outputs: [results/iter_003/](results/iter_003/)
+
+## 2026-11-07 14:18 · Iterations 2–3 read; h-maxima markers added
+
+Numbers from `results/iter_002/` and `results/iter_003/` (`execute.json`, `verify.json`, `usage.json`).
+
+**Iteration 2.** The planner followed the reviewer's grid:
+`sigma` 2, `min_distance` 14, `footprint` 29, `min_area_px` 80, the rest unchanged.
+
+| | max_rel_error | median count error (bias) | median size error (bias) |
+|---|---|---|---|
+| iteration 1 | 0.333 | 0.333 (+0.333) | 0.166 (−0.166) |
+| iteration 2 | 0.076 | 0.076 (+0.052) | 0.048 (−0.025) |
+
+"pass" in the auto-appended entry above means the planner's own threshold for this hypothesis, **0.20**, not the project's 0.10.
+Per family (`by_family`), the pooled 0.076 hides two failing morphologies:
+
+| Family | Median count error (bias) | Median size error |
+|---|---|---|
+| columnar_duplex | 0.514 (+0.514) | 0.205 |
+| elongated_single | 0.378 (+0.378) | 0.174 |
+| equiaxed_single | 0.120 | 0.053 |
+| fine_equiaxed_single | 0.046 (−0.046) | 0.034 |
+| minor_phase_15 | 0.034 | 0.014 |
+| duplex_50 | 0.011 | 0.019 |
+
+The reviewer **rejected** it, for three reasons:
+- The pooled metric hides the failing families.
+- One isotropic `min_distance` cannot serve both elongated grains (they need wider spacing) and fine grains (fine_equiaxed already under-counts at 14).
+- It proposed a worst-family score, interior-component markers, and h-maxima as the fallback.
+
+**Iteration 3 failed before running.** The planner put `overlay` (a list of image names) into `params`,
+and the method rejected the unknown key (`ValueError`, recorded in execute.json, as designed).
+Cause: the method docstring, which the planner reads as the list of params, mentioned the `overlay` argument.
+Its hypothesis (`min_distance` 22, `footprint` 45, to map the far side of the trade-off) was not tested.
+
+**Cost:** iteration 2 $0.17 (planner 4,056 / 1,230 tokens, reviewer 13,331 / 3,534); iteration 3 $0.11 (planner 7,033 / 2,312, reviewer 4,324 / 970); no web searches.
+
+**Decision**, by the rule set before the runs:
+the best iteration among 1–3 is iteration 2, and columnar_duplex has median count error 0.514 > 0.50,
+so the marker method changes, as the reviewer proposed.
+
+**Changes:**
+- `watershed` gets `markers: peaks | hmaxima` and `h_px` (1–5). `peaks` stays the default, so iterations 1–3 stay reproducible.
+  Test first ([tests/test_watershed.py](tests/test_watershed.py)): on a Voronoi micrograph with grains about 4:1,
+  40 true grains, peak markers find 145 and h-maxima (h = 2) find 53.
+  On one synthetic dev image, h-maxima takes 0.34 s.
+- The docstring no longer mentions `overlay`, and the planner prompt says to use only the listed params.
+- The evaluator also reports `worst_family_rel_error`: max over families of the larger family median.
+  It is reported next to the main metric, which stays `max_rel_error`; that is the target the question states.
+  On iteration 2 the worst family scores 0.514, not 0.076.
+
+## 2026-11-07 14:18 · iteration 4 (run.py)
+
+- Hypothesis: Switching from distance-transform 'peaks' markers to 'hmaxima' markers (h_px=2), with everything else held at the iteration-2 settings (gaussian sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false, fill_boundaries=true), cuts worst_family_rel_error on the synthetic dev split from about 0.51 (columnar_duplex in iteration 2) to <= 0.20, while fine_equiaxed stays within 10% on count.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'markers': 'hmaxima', 'h_px': 2.0, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True}
+- Result: worst_family_rel_error = 0.20385906040268456, target <= 0.2: **fail**
+- Review: reject. The pre-registered target was missed. worst_family_rel_error = 0.2039 against a threshold of <= 0.20. The worst family is now equiaxed_single, with median count bias +20.4%; its per-image errors are +12%, +16%, +25% and +27%.
+
+What the run does show:
+- **Columnar fixed.** The h-maxima switch fixed the targeted failure: columnar_duplex dropped from about 0.51 to a median count error of 0.042.
+- **Over-segmentation remains in two families.** It persists in elongated_single (+14% to +20% on every image) and equiaxed_single.
+- **Direction is consistent.** In those two families every image over-counts and under-sizes, with size bias -8% to -14%. This is systematic over-splitting, not noise.
+- **Fine_equiaxed clause holds only at the median.** The median is 7.8%, but fine_equiaxed_single_05 is at +10.1% and _01 is at +9.5%. They also over-count, not under-count, so h=2 is not merging small grains.
+
+Other cautions:
+- The pooled max_rel_error of 0.079 would look like a pass, but it hides family failures, so it should not be cited.
+- With n=4 per family, a 0.004 miss is within sampling noise. Still, three of the four equiaxed images exceed 0.12, so the failure is not borderline in substance.
+- The by_corruption_level rows remain confounded with family. No noise trend is supported, and within-family by_level shows no monotone trend.
+- No sign of leakage. The metric matches the claim.
+
+Failures visible in the overlays:
+- **columnar_duplex_00 (low corruption):** grains are over-split by short spurious vertical cuts across elongated grains. Examples: several parallel lines near x≈780–800, y≈575–610; x≈660–700, y≈630–655; x≈60–75, y≈260–400. The white diagonal scratch is mostly not traced. Real boundaries are well captured.
+- **duplex_50_02 (mid corruption):** a long straight red line runs from the top edge near x≈620 to the bottom near x≈500. This is a scratch traced as a grain boundary, splitting every grain it crosses. Pores and rings are outlined as grains, near (585,570), (180,95) and (800,495). Small rectangular slivers are cut into grains, near (60,540) and (570,465).
+- **minor_phase_15_04 (high corruption):** several long straight diagonal scratches are traced as boundaries, e.g. roughly (350,700)→(810,90) and the lines around x≈500–650. Circular rings are outlined as grains, at about (200,185), (10,300) and (235,565). There is red hatching from parallel scratch texture near (150,360), plus many short dangling spur segments inside grains.
+- **Merging:** I see no clear merged grains under one contour, which fits the uniformly positive count bias.
+
+Confidence: high that the target is not met, and moderate-high that the remaining error is mostly over-splitting from marker excess plus artifact boundaries.
+- Next: Run one single-variable change: h_px 2.0 -> 3.0, keeping sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false and fill_boundaries=true.
+
+Why:
+- Every family over-counts, including fine_equiaxed at +5% to +10%, so there is room to suppress seeds without the merging risk the plan worried about.
+- The plan's own rule (persistent positive bias in elongated/equiaxed means use h_px 3–4) applies.
+- If h=3 leaves equiaxed or elongated above 0.10, bracket h_px 3.0 -> 4.0 next. Stop raising h if fine_equiaxed count bias turns negative beyond -5%.
+
+What to report: per-family count bias, and the fraction of over-count attributable to scratch- or pore-heavy images.
+
+What no parameter can fix: h_px will not remove the straight scratch lines traced as boundaries or the pore and ring outlines (duplex_50_02, minor_phase_15_04). No existing parameter of the watershed method handles these; raising min_area_px only drops small ring interiors and would cost fine grains (mean area about 200 px). They need a new boundary post-filter method that:
+- removes long straight boundary segments that continue across grain junctions (Hough or segment-length/straightness test, e.g. straight runs > 60 px);
+- rejects or merges regions with circularity > 0.85 whose interior intensity is darker or uniform relative to neighbours (pores and rings), merging them into the surrounding grain;
+- prunes dangling spur segments that do not close a region.
+
+Keep the holdout and the real 316L images untouched until the dev split passes on all families.
+- Outputs: [results/iter_004/](results/iter_004/)
+
+## 2026-11-07 14:19 · iteration 5 (run.py)
+
+- Hypothesis: Raising the h-maxima height from h_px=2.0 to 3.0, with everything else at the iteration-4 settings (gaussian sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false, fill_boundaries=true), brings worst_family_rel_error on the synthetic dev split from 0.204 to <= 0.10. Secondary predictions: equiaxed_single and elongated_single median count bias falls below +10%, and fine_equiaxed median count bias stays within -5% to +10%.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'markers': 'hmaxima', 'h_px': 3.0, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True}
+- Result: worst_family_rel_error = 0.18278863923742827, target <= 0.1: **fail**
+- Review: reject. The registered target fails clearly. worst_family_rel_error is 0.183 against a target of <= 0.10. This is driven by equiaxed_single, whose median count bias is +18.3% (per image +14.1%, +24.8%, +10.8%, +22.5%) and size bias -10.1%. Four images per family is few, but every equiaxed image and every elongated image misses 10% on count, so the reject does not depend on one outlier.
+
+Secondary predictions:
+- **Equiaxed below +10%:** fails (+18.3%).
+- **Elongated below +10%:** fails. Median is +15.5%; per image +13.4%, +17.5%, +10.1%, +17.6%.
+- **fine_equiaxed within -5% to +10%:** holds (+4.9%, range +1.8% to +6.6%).
+
+Raising h from 2 to 3 moved equiaxed only about 2 points (0.204 to 0.183). Meanwhile columnar_duplex flipped to under-counting (median -5.7%; images 00 and 03 at -8.5% and -8.4%), and duplex_50 also went negative (-2.9%). That is the plan's own stop signal: failure modes (a) and (b) both appear. h trades columnar and duplex merging against equiaxed and elongated excess, and no single h value brings every family under 10%.
+
+The pooled max_rel_error of 0.066 is misleading because it is a median across families. It should not be cited, as the plan said.
+
+Count and size are not independent checks. The size metric is mean equivalent diameter, so a +18% count largely forces about -8% to -10% in diameter, and the two errors largely share one cause.
+
+What the overlays show:
+- **columnar_duplex_00:** many short vertical red segments cut across horizontal elongated grains. Examples are x≈60–210 at y≈260–400, and a stack of 3–4 parallel verticals at x≈785–800, y≈575–610. These are over-splits. Yet the image is net -8.5%, so thin dark sliver grains must be merged or dropped. Candidates are the dark wedges on the right at y≈440–560 and at x≈470, y≈140–165, which are probably lost to min_area_px=80 or to the tophat.
+- **duplex_50_02:** a long straight scratch is traced as a boundary from about (620,0) to (500,740), cutting a whole column of grains. There is a second straight line near x≈480, y≈240–720. A circular ring is outlined at about (588,572), and a horizontal hatch of parallel red lines sits at about (560–590,470). Short dangling spurs are visible, e.g. near (300,175) and (60,540).
+- **minor_phase_15_04:** two long diagonal scratches are traced from about (810,90) to (500,740). Circular rings and pores are outlined as grains at about (200,185), (10,305) and (235,565). There is hatching at about (150,360) and spurs at about (395,180) and (240,450). Its +0.2% count is therefore a cancellation of spurious splits against merges, not correct segmentation.
+
+No overlay of an equiaxed or elongated image was produced. The claim that their residual comes from scratches and rings is inferred from the other families' overlays, not directly verified.
+
+Noise: there is one image per level per family, and within-family errors are non-monotonic. Equiaxed reads 14%, 25%, 11%, 22% across levels 0.35, 0.55, 0.75, 0.95. No noise-degradation claim is supported. No leakage is indicated: the run used the dev split only, and holdout and 316L were untouched.
+
+Confidence that the hypothesis is false: about 95%. Confidence that h tuning alone cannot reach the target: about 75%.
+- Next: Stop tuning h_px; the bracket is done. h 2 -> 3 bought about 2 points on equiaxed and cost about 6 to 8 points on columnar. h_px 3 -> 4 would push columnar and duplex past -10%. h_px 3 -> 2.5 would raise equiaxed back toward 0.20. Keep h_px=3.0 provisionally, since columnar is still inside 10%.
+
+(1) Diagnostic first, with no code change to the method. Regenerate overlays for equiaxed_single_02, equiaxed_single_04, elongated_single_01 and elongated_single_04. For each image, report how many predicted grains (a) border a straight boundary segment longer than about 60 px, (b) have circularity > 0.85, and (c) are smaller than 0.3 times the median grain area. This verifies whether scratches and rings explain the +15–25% excess in the failing families.
+
+(2) If confirmed, no parameter of the existing watershed can fix this. Tophat line_width_px responds to scratches and true boundaries alike, because they have similar width. Write a new method, watershed + boundary post-filter, with three steps:
+- Delete boundary segments that are straight (Hough or RANSAC fit residual under about 1.5 px) over 60 px or more and continue collinearly through triple junctions. Then merge the regions on either side.
+- Merge regions with circularity > 0.85 and near-uniform interior, or dark pores, into their largest neighbour.
+- Prune spurs that do not close a region, and merge stacks of parallel short segments under about 6 px apart.
+
+(3) Separately, to address columnar under-counting, test min_area_px 80 -> 50. The thin sliver grains in columnar_duplex_00 appear lost, and fine grains are about 15 px in equivalent diameter (about 180 px²), so 50 is still safe. Run this as its own single-variable experiment after the post-filter, not combined with it.
+
+Evaluate on the dev split by family, with per-image errors. Holdout and 316L remain untouched.
+- Outputs: [results/iter_005/](results/iter_005/)
+
+## 2026-11-07 14:20 · Iterations 4–5: h-maxima markers fix columnar; equiaxed and elongated still over-count
+
+Numbers from `results/iter_004/` and `results/iter_005/`.
+Both runs use `sigma` 2, `tophat` 4, `min_area_px` 80 and `markers` hmaxima, with `h_px` 2 (iteration 4) and 3 (iteration 5).
+The planner chose `worst_family_rel_error` as its decision metric in both.
+
+| Iteration | markers | max_rel_error (pooled) | worst_family_rel_error | Worst family |
+|---|---|---|---|---|
+| 2 | peaks, min_distance 14 | 0.076 | 0.514 | columnar_duplex |
+| 4 | hmaxima, h 2 | 0.079 | 0.204 | equiaxed_single |
+| 5 | hmaxima, h 3 | **0.066** | **0.183** | equiaxed_single |
+
+Median count error (bias) per family:
+
+| Family | it. 2 | it. 4 | it. 5 |
+|---|---|---|---|
+| columnar_duplex | 0.514 (+) | 0.042 (+0.028) | 0.057 (−0.057) |
+| elongated_single | 0.378 (+) | 0.169 (+0.169) | 0.155 (+0.155) |
+| equiaxed_single | 0.120 (+) | 0.204 (+0.204) | 0.183 (+0.183) |
+| fine_equiaxed_single | 0.046 (−) | 0.078 (+0.078) | 0.049 (+0.049) |
+| minor_phase_15 | 0.034 | 0.044 | 0.032 |
+| duplex_50 | 0.011 | 0.020 | 0.034 (−0.029) |
+
+The marker change fixed the failure it targeted: columnar_duplex went from 0.514 to 0.04–0.06.
+Equiaxed and elongated now fail instead, over-counting on every image (+10 % to +25 %).
+Raising h from 2 to 3 bought about 2 points on equiaxed and pushed columnar and duplex_50 to under-counting.
+
+The reviewer **rejected** both, and recommends stopping h tuning: the bracket is done.
+It attributes the remaining excess to scratches traced as boundaries and to pores and rings outlined as grains,
+which no parameter of the current method removes.
+It proposes a diagnostic first: count predicted grains along long straight segments and very round grains in the failing images,
+and then a scratch or pore filter.
+
+**Noise, read within one morphology** (iteration 5, `by_family[f].by_level`, count error per image):
+
+| Family | Count error by corruption level |
+|---|---|
+| elongated_single | 0.15: +0.13, 0.35: +0.18, 0.55: +0.10, 0.95: +0.18 |
+| equiaxed_single | 0.35: +0.14, 0.55: +0.25, 0.75: +0.11, 0.95: +0.22 |
+| columnar_duplex | 0.15: −0.09, 0.35: 0.00, 0.5: −0.03, 0.75: −0.08 |
+
+No family shows a monotonic degradation with corruption level.
+With one image per (family, level) cell, a trend smaller than the image-to-image scatter (about ±5–10 points) cannot be detected.
+This is a limit of the 24-image dev set, not evidence that noise does not matter.
+
+**Status against the question (synthetic dev, testbed only):**
+- The pooled medians are within 10 % (`max_rel_error` 0.066).
+- Two of six morphologies are not (equiaxed +18 %, elongated +16 % count).
+- The best dev iteration for `--final` is iteration 5.
+
+**Cost:** iteration 4 $0.18 (planner 9,573 / 1,687 tokens, reviewer 13,602 / 2,910); iteration 5 $0.21 (planner 12,507 / 1,645, reviewer 13,637 / 3,545); no web searches.
+Iterations 1–5 together: about $1.47.

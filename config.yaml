@@ -24,7 +24,7 @@ limits:
   max_continuations: 3   # resumes of a paused server-tool turn
 
 steps:
-  literature: first_only  # true: every iteration; first_only: iteration 1, later ones reuse its notes; false: never
+  literature: first_only  # true: every iteration; first_only: first iteration per eval.dataset, later ones reuse its notes; false: never
   llm_review: true   # let the reviewer judge each result after the automatic checks
 
 # What the inner loop evaluates on. Only the dev split; the holdout is for run.py --final.

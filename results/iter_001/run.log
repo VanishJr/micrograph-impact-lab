@@ -1,0 +1,10 @@
+2026-11-07 13:57:09,733 INFO run: iteration 1
+2026-11-07 14:02:46,399 INFO run: iteration 1
+2026-11-07 14:02:53,539 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:02:53,568 INFO src.plan: plan: The default watershed pipeline (gaussian sigma=1, tophat line_width_px=4, min_distance=8, footprint=15, min_area_px=40, fill_boundaries=true) reaches max_rel_error <= 0.10 on the synthetic dev split. -> watershed({'denoise': 'gaussian', 'sigma': 1.0, 'boundary': 'tophat', 'line_width_px': 4, 'min_distance': 8, 'footprint': 15, 'min_area_px': 40, 'exclude_edge': False, 'fill_boundaries': True})
+2026-11-07 14:04:08,292 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:04:08,418 INFO src.literature: literature: 0 sources
+2026-11-07 14:04:15,483 INFO src.execute: execute: ok=True metrics={'median_count_rel_error': 0.33314633755409523, 'median_size_rel_error': 0.16578668109683461, 'median_count_bias': 0.33314633755409523, 'median_size_bias': -0.16578668109683461, 'n_images': 24, 'max_rel_error': 0.33314633755409523}
+2026-11-07 14:04:49,558 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:04:49,561 INFO src.verify: verify: max_rel_error = 0.33314633755409523 (target <= 0.1), passed=False
+2026-11-07 14:04:49,562 INFO src.record: record: iteration 1 saved

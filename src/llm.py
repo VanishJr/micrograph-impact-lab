@@ -6,6 +6,7 @@ In dry-run mode no request is sent; each call returns the canned answer its step
 import base64
 import json
 import logging
+from collections import Counter
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -46,21 +47,30 @@ class Claude:
         content = self._call(role, _user_content(prompt, images), output_format={"type": "json_schema", "schema": schema})
         return json.loads(next(b.text for b in content if b.type == "text"))
 
-    def ask_text(self, role: str, prompt: str, *, tools=(), dry_run_response: tuple[str, list]) -> tuple[str, list[str]]:
-        """Ask for free text, optionally with server tools such as web search. Returns the text and the cited URLs."""
+    def ask_text(self, role: str, prompt: str, *, tools=(), dry_run_response: tuple) -> tuple[str, list[str], list[str]]:
+        """Ask for free text, optionally with server tools such as web search.
+
+        Returns the text, the URLs cited in it, and the other URLs the web search returned.
+        """
         if self.dry_run:
             return dry_run_response
         content = self._call(role, _user_content(prompt, ()), tools=list(tools))
-        texts, sources = [], []
+        log.info("%s: content blocks %s", role, dict(Counter(block.type for block in content)))
+        texts, cited, searched = [], [], []
         for block in content:
-            if block.type != "text":
-                continue
-            texts.append(block.text)
-            for citation in getattr(block, "citations", None) or []:
-                url = getattr(citation, "url", None)
-                if url and url not in sources:
-                    sources.append(url)
-        return "".join(texts), sources
+            if block.type == "text":
+                texts.append(block.text)
+                for citation in getattr(block, "citations", None) or []:
+                    url = getattr(citation, "url", None)
+                    if url and url not in cited:
+                        cited.append(url)
+            elif block.type == "web_search_tool_result" and isinstance(block.content, list):
+                # a list of web_search_result items; on failure the content is a single error object instead
+                for result in block.content:
+                    url = getattr(result, "url", None)
+                    if url and url not in searched:
+                        searched.append(url)
+        return "".join(texts), cited, [url for url in searched if url not in cited]
 
     def _call(self, role: str, user_content: list, *, output_format=None, tools=None) -> list:
         spec = self.roles[role]
@@ -85,12 +95,14 @@ class Claude:
             if assistant:  # resume a paused server-tool turn: resend it, the server continues it
                 messages.append({"role": "assistant", "content": assistant})
             message = self.client.beta.messages.create(messages=messages, **request)
+            server_tools = getattr(message.usage, "server_tool_use", None)
             self.usage.append(
                 {
                     "role": role,
                     "model": message.model,
                     "input_tokens": message.usage.input_tokens,
                     "output_tokens": message.usage.output_tokens,
+                    "web_search_requests": getattr(server_tools, "web_search_requests", 0) or 0,
                 }
             )
             assistant = assistant + list(message.content)

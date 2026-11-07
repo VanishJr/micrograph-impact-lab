@@ -1,0 +1,25 @@
+{
+  "hypothesis": "With isotropic marker spacing raised past the fine-grain diameter (sigma=2, min_distance=22, footprint=45, min_area_px=80), the pooled dev max_rel_error rises to >= 0.10 compared with 0.076 in iteration 2, and the family medians split two ways: columnar_duplex and elongated_single count error falls below about 30% but stays above 10%, while fine_equiaxed under-counts by more than 20% and equiaxed_single turns to under-counting. This would show that no single min_distance/footprint setting puts every family within 10%.",
+  "rationale": "Iteration 2 left an unresolved tradeoff. At min_distance=14, columnar over-counted by 51% and elongated by 38%, while fine_equiaxed had already started to under-count by 2–7.5%. The research question needs to know whether this isotropic marker-spacing method can reach 10% on every morphology. I cannot write the h-maxima or interior-component marker method in this step, so the most useful experiment is to map the far side of the tradeoff with the same pipeline.\n\nOnly the marker-spacing knobs change. sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false and fill_boundaries=true are all held fixed, so the shift in each family's bias can be attributed to spacing alone.\n\nThe pooled max_rel_error averages over families and hides the failures that matter, so I will judge the outcome mainly on by_family medians in execute.json. The registered decision rule is pooled max_rel_error >= 0.10. If it stays below 0.10 and every family is within 10%, the hypothesis is falsified and parameter tuning is enough after all. I give that about 10%.\n\nMy expectation is that the hypothesis holds, at about 60% confidence. The doubtful part is how far the columnar and elongated errors fall: a 4:1 ridge about 60 px long could still carry 2–3 markers at a spacing of 22.\n\nIf the hypothesis holds, iterations 2 and 3 together bracket the isotropic optimum, and the conclusion is plain: the current method cannot meet the 10% target across morphologies. The next method to write would use interior-component markers, taken from connected non-boundary regions of the thresholded top-hat map, with h-maxima on the distance transform as the fallback. It should also reject scratches by filtering long straight boundary segments, and reject pores and rings by circularity and intensity.\n\nI am making no noise-degradation claim yet. Corruption level is confounded with family, so any noise trend must be read within one family using by_family[f].by_level. The holdout split and the real 316L images stay untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 2.0, \"boundary\": \"tophat\", \"line_width_px\": 4, \"min_distance\": 22, \"footprint\": 45, \"min_area_px\": 80, \"exclude_edge\": false, \"fill_boundaries\": true, \"overlay\": [\"columnar_duplex_00\", \"minor_phase_15_04\", \"duplex_50_02\"]}",
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": ">=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "min_distance": 22,
+    "footprint": 45,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true,
+    "overlay": [
+      "columnar_duplex_00",
+      "minor_phase_15_04",
+      "duplex_50_02"
+    ]
+  }
+}

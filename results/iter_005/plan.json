@@ -1,0 +1,20 @@
+{
+  "hypothesis": "Raising the h-maxima height from h_px=2.0 to 3.0, with everything else at the iteration-4 settings (gaussian sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false, fill_boundaries=true), brings worst_family_rel_error on the synthetic dev split from 0.204 to <= 0.10. Secondary predictions: equiaxed_single and elongated_single median count bias falls below +10%, and fine_equiaxed median count bias stays within -5% to +10%.",
+  "rationale": "Iteration 4 showed that h-maxima markers fixed the columnar over-splitting: columnar_duplex fell from 0.51 to a median count error of 0.042. The worst family is now equiaxed_single at +20.4% median count bias (per image +12%, +16%, +25%, +27%). Elongated_single sits at +14% to +20%.\n\nEvery family still over-counts, including fine_equiaxed at +5% to +10%, and size bias is uniformly negative. That is systematic marker excess, so there is headroom to suppress seeds before small grains start merging. This is a single-variable change (h_px only), so any shift in per-family bias can be attributed to seed suppression.\n\nThe experiment answers the open question directly: can tuning the current method's parameters reach the 10% target on every morphology, or is the remaining error dominated by artifacts no parameter can fix? Those artifacts are straight scratches traced as boundaries and pores or rings outlined as grains (duplex_50_02, minor_phase_15_04).\n\nI register the research target itself (worst_family_rel_error <= 0.10). My confidence that it passes is about 30%. The most likely failure modes are:\n- (a) equiaxed or elongated stay at 10–15%, because part of their over-count comes from scratch and pore boundaries that h cannot remove.\n- (b) fine_equiaxed or columnar flip to under-counting. Fine-grain distance-transform peaks are only about 6–8 px high, so h=3 may merge neighbours separated by shallow saddles.\n\nHow to read the outcome from by_family biases:\n- If equiaxed and elongated drop but plateau above 0.10, with the residual concentrated in scratch- or pore-heavy images, parameter tuning is exhausted. A new method should then be written: a boundary post-filter that removes long straight segments (straight runs over about 60 px continuing across junctions), merges circular dark or uniform regions (circularity > 0.85) into their surroundings, and prunes dangling spurs.\n- If fine_equiaxed goes below -5%, h=3 overshoots and the optimum lies between 2 and 3.\n- If everything is still positive and above 10%, bracket h_px=4 next.\n\nThe pooled max_rel_error will not be cited. Any noise trend will be read only within a family via by_family[f].by_level, since corruption level is confounded with morphology. No noise claim is expected from this run, and the holdout and real 316L images stay untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 2.0, \"boundary\": \"tophat\", \"line_width_px\": 4, \"markers\": \"hmaxima\", \"h_px\": 3.0, \"min_area_px\": 80, \"exclude_edge\": false, \"fill_boundaries\": true}",
+  "metric": "worst_family_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "markers": "hmaxima",
+    "h_px": 3.0,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true
+  }
+}

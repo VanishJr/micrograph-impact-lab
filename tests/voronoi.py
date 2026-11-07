@@ -15,13 +15,16 @@ from skimage.segmentation import find_boundaries
 UM_PER_PX = 0.5
 
 
-def voronoi_micrograph(shape=(240, 320), n_grains=40, seed=0, noise=0.03):
-    """Return (uint8 image, uint16 labels). Every pixel belongs to a grain, as in the synthetic set."""
+def voronoi_micrograph(shape=(240, 320), n_grains=40, seed=0, noise=0.03, stretch=1.0):
+    """Return (uint8 image, uint16 labels). Every pixel belongs to a grain, as in the synthetic set.
+
+    stretch > 1 elongates the grains along x by about that factor (columnar / elongated morphologies).
+    """
     rng = np.random.default_rng(seed)
     h, w = shape
-    seeds = rng.uniform([0, 0], [h, w], size=(n_grains, 2))
+    seeds = rng.uniform([0, 0], [h, w / stretch], size=(n_grains, 2))
     yy, xx = np.mgrid[:h, :w]
-    _, nearest = cKDTree(seeds).query(np.c_[yy.ravel(), xx.ravel()])
+    _, nearest = cKDTree(seeds).query(np.c_[yy.ravel(), xx.ravel() / stretch])
     labels = (nearest.reshape(h, w) + 1).astype(np.uint16)
     image = rng.uniform(0.45, 0.9, n_grains + 1)[labels]
     image[find_boundaries(labels, mode="inner")] = 0.15  # dark lines about 2 px wide

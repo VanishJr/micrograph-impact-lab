@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import run
-from src import verify
+from src import literature, verify
 from src.config import load_config
 from src.llm import Claude
 from src.methods import METHODS
@@ -107,6 +107,17 @@ def test_literature_runs_only_on_the_first_iteration(cfg):
     iterate_once(cfg)
 
     assert "Skipped" in (cfg["paths"]["results"] / "iter_002" / "literature.md").read_text()
+
+
+def test_literature_runs_again_for_a_new_dataset(cfg, tmp_path):
+    claude = Claude(cfg, dry_run=True)
+    history = [{"iteration": 1, "dataset": "synthetic"}]
+
+    cfg["eval"]["dataset"] = "316L"
+    literature.run(cfg, claude, {"hypothesis": "h", "method": "m", "params": {}, "metric": "x",
+                                 "direction": "<=", "threshold": 0.1}, tmp_path, history)
+
+    assert "Skipped" not in (tmp_path / "literature.md").read_text()
 
 
 def test_the_reviewer_sees_the_overlays(cfg, monkeypatch):

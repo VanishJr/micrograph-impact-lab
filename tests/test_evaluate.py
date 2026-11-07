@@ -41,6 +41,8 @@ def test_perfect_predictions_score_zero(truth):
     result = evaluate.score(t, {n: perfect(root, n) for n in t}, exclude_edge=False)
     assert result["metrics"]["max_rel_error"] == pytest.approx(0, abs=1e-9)
     assert set(result["by_corruption_level"]) == {"0.15", "0.55"}
+    assert result["by_family"]["voronoi"]["n_images"] == 2
+    assert set(result["by_family"]["voronoi"]["by_level"]) == {"0.15", "0.55"}
 
 
 def test_ten_percent_larger_grains_give_size_error_010(truth):
@@ -59,6 +61,7 @@ def test_missing_grains_give_count_error(truth):
     assert m["median_count_rel_error"] == pytest.approx(0.10)
     assert m["median_count_bias"] == pytest.approx(-0.10)
     assert m["max_rel_error"] == max(m["median_count_rel_error"], m["median_size_rel_error"])
+    assert m["worst_family_rel_error"] == pytest.approx(0.10)  # one family here, so it equals the pooled value
 
 
 def test_excluding_edge_grains_is_compared_like_for_like(truth):

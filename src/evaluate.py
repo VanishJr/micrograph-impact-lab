@@ -23,8 +23,11 @@ METRICS_DOC = """The evaluator reports, over the dev images (errors are relative
 - median_count_rel_error: median |predicted grain count - true count| / true count.
 - median_size_rel_error: median |predicted - true| / true mean equivalent diameter of interior grains.
 - median_count_bias, median_size_bias: the same, signed (> 0: too many grains / too large).
+- worst_family_rel_error (synthetic only): max over families of max(family median count error, family median size error);
+  the pooled medians can pass while one morphology fails.
 - n_images: images scored.
-Per image errors, and (synthetic) medians per corruption_level, are in execute.json."""
+Per image errors, and (synthetic) medians per corruption_level and per family are in execute.json;
+by_family[family].by_level shows the noise trend within one morphology (corruption levels mix families)."""
 
 
 def truth(cfg: dict, dataset: str, split: str, names: list[str]) -> dict:
@@ -44,6 +47,7 @@ def truth(cfg: dict, dataset: str, split: str, names: list[str]) -> dict:
                 "scale": float(images.at[n, "um_per_px"]),
                 "unit": "um",
                 "corruption_level": float(images.at[n, "corruption_level"]),
+                "family": str(images.at[n, "family"]),
             }
             for n in stems
         }
@@ -67,6 +71,7 @@ def truth_from_mask(path: Path) -> dict:
         "scale": 1.0,
         "unit": "px",
         "corruption_level": None,
+        "family": None,
     }
 
 
@@ -93,6 +98,7 @@ def score(truth_by_image: dict, predictions: dict, exclude_edge: bool) -> dict:
             row["size_rel_error"] = 1.0  # no interior grain predicted: counted as a 100 % size error
             row["no_interior_grains"] = True
         row["corruption_level"] = t["corruption_level"]
+        row["family"] = t.get("family")
         per_image[name] = row
 
     def medians(rows):
@@ -113,7 +119,25 @@ def score(truth_by_image: dict, predictions: dict, exclude_edge: bool) -> dict:
         if r.get("corruption_level") is not None:
             levels.setdefault(f"{r['corruption_level']:g}", []).append(r)
     by_level = {k: medians(v) for k, v in sorted(levels.items(), key=lambda kv: float(kv[0]))}
-    return {"metrics": metrics, "by_corruption_level": by_level, "per_image": per_image}
+    families: dict[str, list] = {}
+    for r in per_image.values():
+        if r.get("family"):
+            families.setdefault(r["family"], []).append(r)
+    by_family = {
+        fam: {
+            **medians(rows),
+            "by_level": {  # the noise trend within one morphology
+                f"{r['corruption_level']:g}": {"count_rel_error": r["count_rel_error"], "size_rel_error": r["size_rel_error"]}
+                for r in sorted(rows, key=lambda r: r["corruption_level"])
+            },
+        }
+        for fam, rows in sorted(families.items())
+    }
+    if by_family:  # the pooled medians can hide a failing morphology
+        metrics["worst_family_rel_error"] = max(
+            max(f["median_count_rel_error"], f["median_size_rel_error"]) for f in by_family.values()
+        )
+    return {"metrics": metrics, "by_corruption_level": by_level, "by_family": by_family, "per_image": per_image}
 
 
 def evaluate(cfg: dict, dataset: str, split: str, predictions: dict, exclude_edge: bool) -> dict:

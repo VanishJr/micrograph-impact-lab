@@ -5,9 +5,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from PIL import Image
+
 from src import evaluate
 from src.methods import METHODS
-from tests.voronoi import write_synthetic_dataset
+from tests.voronoi import voronoi_micrograph, write_synthetic_dataset
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,3 +39,24 @@ def test_watershed_runs_on_a_real_316L_image(tmp_path):
 def test_unknown_params_are_rejected(tmp_path):
     with pytest.raises(ValueError, match="sigmaa"):
         METHODS["watershed"]([], {"sigmaa": 1}, tmp_path)
+
+
+def test_hmaxima_markers_over_split_elongated_grains_less_than_peaks(tmp_path):
+    image, labels = voronoi_micrograph(shape=(240, 480), n_grains=40, seed=3, stretch=4.0)
+    path = tmp_path / "elongated.png"
+    Image.fromarray(image).save(path)
+    n_true = len(np.unique(labels))
+    common = {"min_distance": 8, "footprint": 15}
+
+    def count(params, out):
+        return len(METHODS["watershed"]([path], {**common, **params}, tmp_path / out)["predictions"]["elongated"])
+
+    n_peaks = count({"markers": "peaks"}, "peaks")
+    n_hmaxima = count({"markers": "hmaxima", "h_px": 2}, "hmaxima")
+    assert n_peaks > 1.3 * n_true  # the failure the reviewer saw: ladders of markers along each grain
+    assert abs(n_hmaxima - n_true) < abs(n_peaks - n_true), (n_true, n_peaks, n_hmaxima)
+
+
+def test_unknown_marker_kind_is_rejected(tmp_path):
+    with pytest.raises(ValueError, match="markers"):
+        METHODS["watershed"]([], {"markers": "random"}, tmp_path)

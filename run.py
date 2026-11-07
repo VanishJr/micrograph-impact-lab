@@ -34,7 +34,7 @@ def iterate(cfg: dict, claude: Claude, state: State) -> dict:
     try:
         log.info("iteration %d", state.iteration)
         p = plan.run(cfg, claude, state, it_dir)
-        lit = literature.run(cfg, claude, p, it_dir, state.iteration)
+        lit = literature.run(cfg, claude, p, it_dir, state.history)
         ex = execute.run(cfg, p, it_dir)
         v = verify.run(cfg, claude, p, lit, ex, it_dir)
         return record.run(cfg, state, it_dir, p, lit, ex, v, claude.usage)

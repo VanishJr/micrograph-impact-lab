@@ -1,0 +1,16 @@
+2026-11-07 14:15:57,822 INFO run: iteration 3
+2026-11-07 14:16:21,746 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:16:21,753 INFO src.plan: plan: With isotropic marker spacing raised past the fine-grain diameter (sigma=2, min_distance=22, footprint=45, min_area_px=80), the pooled dev max_rel_error rises to >= 0.10 compared with 0.076 in iteration 2, and the family medians split two ways: columnar_duplex and elongated_single count error falls below about 30% but stays above 10%, while fine_equiaxed under-counts by more than 20% and equiaxed_single turns to under-counting. This would show that no single min_distance/footprint setting puts every family within 10%. -> watershed({'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'min_distance': 22, 'footprint': 45, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True, 'overlay': ['columnar_duplex_00', 'minor_phase_15_04', 'duplex_50_02']})
+2026-11-07 14:16:21,754 INFO src.literature: literature: skipped (first_only), reusing iter_001 notes for synthetic
+2026-11-07 14:16:21,770 ERROR src.execute: execute: watershed failed
+Traceback (most recent call last):
+  File "/Users/vanish/projects/micrograph-impact-lab/src/execute.py", line 33, in run
+    result = METHODS[plan["method"]](images, plan["params"], out_dir, overlay=overlay)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/vanish/projects/micrograph-impact-lab/src/methods/watershed.py", line 57, in watershed
+    raise ValueError(f"unknown params {sorted(unknown)}; allowed: {sorted(DEFAULTS)}")
+ValueError: unknown params ['overlay']; allowed: ['boundary', 'denoise', 'exclude_edge', 'fill_boundaries', 'footprint', 'line_width_px', 'min_area_px', 'min_distance', 'sigma']
+2026-11-07 14:16:21,772 INFO src.execute: execute: ok=False metrics={}
+2026-11-07 14:16:34,070 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:16:34,075 INFO src.verify: verify: max_rel_error = None (target >= 0.1), passed=False
+2026-11-07 14:16:34,077 INFO src.record: record: iteration 3 saved

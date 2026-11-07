@@ -1,0 +1,20 @@
+{
+  "hypothesis": "Spacing markers further apart and smoothing more (sigma=2, min_distance=14, footprint=29, min_area_px=80) cuts the dev max_rel_error from 0.333 to <= 0.20, but columnar_duplex and elongated_single still over-count by more than 50% while fine_equiaxed begins to under-count, i.e. marker-spacing parameters alone cannot reach 10%.",
+  "rationale": "Iteration 1 showed one dominant failure. Distance-transform peaks about 8 px apart over-split grains, so the count bias was positive in 24/24 images and the size bias negative in 24/24. Scratches traced as boundaries and pores outlined as grains are secondary. The open question is how much of the error parameter tuning alone can remove, before writing a new marker method. Raising all marker-spacing knobs together in one run answers that.\n\nThe chosen values and why:\n- min_distance=14: this is below the true diameters of about 22–31 px, and close to fine_equiaxed's about 16 px, so it probes the tradeoff.\n- footprint=29: suppresses secondary maxima.\n- sigma=2: weakens thin scratches.\n- min_area_px=80: the smallest real grains are about 200 px², so this only removes slivers.\n\nI keep line_width_px=4 so that boundary detection stays comparable to the baseline. I will read by_family and by_family[f].by_level so the noise trend is judged within one morphology.\n\nExpected outcome, about 60% confidence: median error falls to about 0.12–0.25, columnar and elongated stay above 50% count error, and fine_equiaxed's count bias turns negative.\n\nIf columnar and elongated remain far off, the evidence will say that the current method cannot meet 10% on all morphologies. A new method should then be written with two additions:\n- (a) h-maxima markers on the distance transform (h about 2–3 px), or connected-component markers taken from grain interiors.\n- (b) a filter that drops long straight boundary segments, or requires intensity contrast across each boundary, to reject scratches.\n\nIf instead the error falls to <= 0.10, parameter tuning suffices and the next step is a noise sweep on dev. The holdout and the real 316L images stay untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 2.0, \"boundary\": \"tophat\", \"line_width_px\": 4, \"min_distance\": 14, \"footprint\": 29, \"min_area_px\": 80, \"exclude_edge\": false, \"fill_boundaries\": true}",
+  "metric": "max_rel_error",
+  "threshold": 0.2,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "min_distance": 14,
+    "footprint": 29,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true
+  }
+}

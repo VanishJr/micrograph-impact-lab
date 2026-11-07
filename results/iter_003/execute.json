@@ -1,0 +1,27 @@
+{
+  "ok": false,
+  "dataset": "synthetic",
+  "split": "dev",
+  "method": "watershed",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "min_distance": 22,
+    "footprint": 45,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true,
+    "overlay": [
+      "columnar_duplex_00",
+      "minor_phase_15_04",
+      "duplex_50_02"
+    ]
+  },
+  "error": "ValueError: unknown params ['overlay']; allowed: ['boundary', 'denoise', 'exclude_edge', 'fill_boundaries', 'footprint', 'line_width_px', 'min_area_px', 'min_distance', 'sigma']",
+  "metrics": {},
+  "checks": {},
+  "overlays": [],
+  "seconds": 0.02
+}

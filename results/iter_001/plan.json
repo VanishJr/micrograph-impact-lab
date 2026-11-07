@@ -1,0 +1,20 @@
+{
+  "hypothesis": "The default watershed pipeline (gaussian sigma=1, tophat line_width_px=4, min_distance=8, footprint=15, min_area_px=40, fill_boundaries=true) reaches max_rel_error <= 0.10 on the synthetic dev split.",
+  "rationale": "No iterations have run yet, so the first step is a baseline. Running the defaults shows where the error sits, through the sign of median_count_bias and median_size_bias, and how it varies across corruption levels in execute.json. That decides whether the next steps should tune marker spacing (over- or under-segmentation), boundary width, or denoising strength. I expect the defaults to miss the 10% target, with about 30% confidence that they pass. Over-segmentation of large grains at min_distance=8 is the most likely failure. Edge grains are kept because the count is compared against the whole image, and fill_boundaries=true keeps grain areas comparable to a tiled ground truth. One small overlay is requested for a visual sanity check.",
+  "method": "watershed",
+  "params_json": "{\"denoise\":\"gaussian\",\"sigma\":1.0,\"boundary\":\"tophat\",\"line_width_px\":4,\"min_distance\":8,\"footprint\":15,\"min_area_px\":40,\"exclude_edge\":false,\"fill_boundaries\":true}",
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 1.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "min_distance": 8,
+    "footprint": 15,
+    "min_area_px": 40,
+    "exclude_edge": false,
+    "fill_boundaries": true
+  }
+}

@@ -1,0 +1,8 @@
+2026-11-07 14:18:36,772 INFO run: iteration 5
+2026-11-07 14:18:52,720 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:18:52,722 INFO src.plan: plan: Raising the h-maxima height from h_px=2.0 to 3.0, with everything else at the iteration-4 settings (gaussian sigma=2, tophat line_width_px=4, min_area_px=80, exclude_edge=false, fill_boundaries=true), brings worst_family_rel_error on the synthetic dev split from 0.204 to <= 0.10. Secondary predictions: equiaxed_single and elongated_single median count bias falls below +10%, and fine_equiaxed median count bias stays within -5% to +10%. -> watershed({'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'markers': 'hmaxima', 'h_px': 3.0, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True})
+2026-11-07 14:18:52,723 INFO src.literature: literature: skipped (first_only), reusing iter_001 notes for synthetic
+2026-11-07 14:19:01,119 INFO src.execute: execute: ok=True metrics={'median_count_rel_error': 0.06573243270490978, 'median_size_rel_error': 0.03731506637509828, 'median_count_bias': 0.03509975147012888, 'median_size_bias': -0.03731506637509828, 'n_images': 24, 'max_rel_error': 0.06573243270490978, 'worst_family_rel_error': 0.18278863923742827}
+2026-11-07 14:19:41,546 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 14:19:41,553 INFO src.verify: verify: worst_family_rel_error = 0.18278863923742827 (target <= 0.1), passed=False
+2026-11-07 14:19:41,555 INFO src.record: record: iteration 5 saved

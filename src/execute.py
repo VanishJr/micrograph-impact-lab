@@ -38,6 +38,7 @@ def run(cfg: dict, plan: dict, it_dir: Path, split: str = "dev") -> dict:
             n_images=len(images),
             metrics=scored["metrics"],
             by_corruption_level=scored["by_corruption_level"],
+            by_family=scored["by_family"],
             per_image=scored["per_image"],
             checks=result.get("checks", {}),
             overlays=[str(Path(p).relative_to(it_dir)) for p in result.get("overlays", [])],

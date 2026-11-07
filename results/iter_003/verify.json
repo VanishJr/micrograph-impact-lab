@@ -1,0 +1,16 @@
+{
+  "metric": "max_rel_error",
+  "value": null,
+  "target": ">= 0.1",
+  "target_met": false,
+  "checks": {
+    "executed": false,
+    "metric_reported": false
+  },
+  "passed": false,
+  "review": {
+    "verdict": "inconclusive",
+    "reason": "The run never executed. The evaluator rejected the params with 'ValueError: unknown params [overlay]', after 0.02 s. There are no metrics, no by_family medians and no overlay images, so the hypothesis cannot be tested in either direction. That hypothesis was pooled max_rel_error >= 0.10, with columnar and elongated over-counting easing to 10–30% and fine_equiaxed and equiaxed_single swinging to under-counting. Nothing can be said about merged grains, over-split grains, scratches or pores taken as boundaries, or missed boundaries, because no segmentation was produced. The failure is a plumbing error, not a scientific result. 'overlay' was placed inside params_json, but the method's allowed keys are only boundary, denoise, exclude_edge, fill_boundaries, footprint, line_width_px, min_area_px, min_distance and sigma. The evidence therefore neither supports nor refutes the claim that no single isotropic min_distance/footprint setting puts every family within 10%; my confidence in any conclusion from this iteration is 0%. Two issues with the plan itself remain. First, the registered decision rule is pooled max_rel_error >= 0.10, but the hypothesis is about per-family medians. A pooled value >= 0.10 could come from one family failing badly, not the predicted two-way split, so the family-level predictions must be checked against by_family in execute.json, not the pooled number. Second, the plan's prior of about 60% is a judgement and is not yet backed by data.",
+    "next_step": "Re-run the identical experiment with 'overlay' removed from params, and pass the overlay image IDs through whatever separate execute field the harness provides, or omit them. Keep every other value unchanged so the comparison with iteration 2 stays a single-variable change in marker spacing: denoise=gaussian, sigma=2.0, boundary=tophat, line_width_px=4, min_distance: 14 -> 22, footprint: (iteration-2 value) -> 45, min_area_px=80, exclude_edge=false, fill_boundaries=true. Judge the outcome on by_family medians of count error and mean-size error. Check that columnar_duplex and elongated_single fall to 10–30% over-count, and that fine_equiaxed under-counts by more than 20% while equiaxed_single flips to under-counting. Read any noise trend only within a family, via by_family[f].by_level. If the predicted split appears, that is evidence the isotropic min_distance/footprint knobs cannot meet 10% on every morphology. The next method would then be interior-component markers taken from connected non-boundary regions of the thresholded top-hat map, with h-maxima on the distance transform as the fallback, plus filters that reject long straight segments (scratches) and use circularity and intensity to reject pores and rings. Keep the holdout split and the real 316L images untouched."
+  }
+}

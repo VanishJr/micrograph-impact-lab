@@ -79,3 +79,6 @@ One line per lesson, with its non-obvious *why*.
 - `execute.json` is pasted verbatim into the reviewer prompt: keep per-grain data in `outputs/predictions.csv`, not in it.
 - The 316L images are a mix of `.png` and `.jpg` (the masks are all `.png`), so the split stores file names with extensions.
 - The leakage test matches substrings: words like "over-splits" trip it; reword rather than weaken the test.
+- With `web_search_20260209` the librarian's text may carry no citations; URLs are in `web_search_tool_result` blocks, so read both or literature.md shows "0 sources".
+- The planner treats every name in a method docstring as a param: mentioning the `overlay` argument there put `overlay` into params and failed iteration 3.
+- The planner sets its own threshold per hypothesis, so "pass" in a summary is relative to that threshold, not to the project's 10 %; read `by_family` too.
