@@ -1011,3 +1011,21 @@ Each dataset's holdout has now been used, and `run.py --final` refuses to run it
 - **Noise.** No controlled sweep was done.
   The within-family pattern in iteration 5 (one image per family and level) is stated as an observation, not a measurement.
   The noise part of the question stays open.
+
+**Clean-clone check.** `git clone` into a temporary folder, then the README's steps:
+- `uv sync`: works.
+- `uv run pytest`: 42 passed.
+- With `MICROGRAPHS_DIR` set, `run.py --dry-run` works on synthetic and on 316L.
+- `python -m src.execute --dataset 316L` works.
+
+Nothing had to be fixed.
+
+One inconsistency surfaced.
+The committed 316L baseline (`results/baseline/316L/execute.json`) was computed before the NaN fix: its size median is 67.8 %, and recomputed now it is 69.2 %.
+The README now notes this, next to the recorded values (69.2 % for the baseline; 43.6 %, 10.7 % and 11.0 % for iterations 6–8).
+`max_rel_error` is unchanged.
+
+**SUBMISSION.md** holds the text for the lab's submission issue, one section per template field.
+- The repository URL uses the GitHub login of this machine (`VanishJr`); please confirm it.
+- Cesare's GitHub handle is a placeholder.
+- A scan of the tracked files found no API keys and no secret files.

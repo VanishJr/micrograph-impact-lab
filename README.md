@@ -173,6 +173,10 @@ Image: Warren et al. 2024, Zenodo 10.5281/zenodo.22039777, CC BY 4.0.*
 | [12](results/iter_012/) | iteration 11 + scratch filter (min length 175 px) | outer loop (`--params`) | 16.7 % | 16.7 % (+16.7 %) | 12.1 % (−2.2 %) |
 | [**holdout**](results/final.json) | iteration 11's config, run once | — | **17.4 %** | 17.4 % (+9.1 %) | 16.3 % (−10.7 %) |
 
+The size errors of the baseline and iterations 6–8 were computed before a NaN fix (one dev image has no grain off the edge).
+Recomputed without it: 69.2 %, 43.6 %, 10.7 % and 11.0 % (see JOURNAL.md).
+`max_rel_error` is unchanged in every case, because count dominates.
+
 **The final 316L config (iteration 11) was not chosen by the planner.**
 The reviewers of iterations 7 and 8 suggested `fill_boundaries=false`, which matches masks that leave boundary pixels out.
 The planner had not tried it, so the outer loop ran it with `run.py --params`, as the developer asked.
@@ -263,6 +267,7 @@ Other observations:
 | [PROMPT.md](PROMPT.md) | the standing instruction for the outer loop |
 | [TASKS.md](TASKS.md) | the task queue |
 | [JOURNAL.md](JOURNAL.md) | every result, decision and exchange, in order |
+| [SUBMISSION.md](SUBMISSION.md) | the text of the lab submission issue |
 | [CLAUDE.md](CLAUDE.md) | context, rules and lessons for Claude Code |
 
 ## Licence
