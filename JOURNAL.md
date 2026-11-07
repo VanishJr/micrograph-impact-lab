@@ -977,3 +977,37 @@ More from `final.json`:
 
 The holdout runs are in `results/final_316L/` and `results/final_synthetic/` (synthetic drawings are not committed).
 Each dataset's holdout has now been used, and `run.py --final` refuses to run it again.
+
+## 2026-11-07 15:45 · README results, figures, one number format
+
+**Request (developer):**
+- Put the 316L figure in the README.
+- Say that iteration 11 was set by the outer loop.
+- Use one number format (percent).
+- Take iteration 4–5 numbers from `execute.json`.
+- Add the SEM observation and an honest noise statement.
+- Check a clean clone.
+
+**Changes:**
+- **Figures.** [docs/before_after_316L.png](docs/before_after_316L.png), made by the developer from dev image U_03_03, is in the README.
+  Its numbers were checked against `execute.json`:
+  - baseline 156 grains found, 16 true;
+  - iteration 7: 20 found, error 23.5 %;
+  - iteration 11: 19 found, error 12.6 %.
+
+  The baseline's 1288.5 % is rounded to 1290 %, as in the figure.
+  `docs/before_after_synthetic.png` and `before_after.png` show synthetic images and are gitignored.
+  The first is committed only if the scientist agrees.
+- **Number format.** All errors are percentages; the 316L baseline is 1290 %.
+  For iterations 4–5, `state.json` holds `worst_family_rel_error` (the planner's metric then), so the README uses `max_rel_error` from `execute.json`.
+- **Iteration 11 is marked in the README.** It was set by the outer loop with `run.py --params`, on the suggestion of the reviewers of iterations 7–8, not chosen by the planner.
+- **Limitation, reported by the developer; not reproducible from this repository.**
+  Both final configs were run unchanged on a new SEM image from the scientist (the image and the run are not in the repository):
+  - the 316L config merged neighbouring grains (38 found);
+  - the synthetic config followed the boundaries better (113 found).
+
+  The image has no mask, so there is no error number.
+  The tuned parameters are tied to grain scale and image type.
+- **Noise.** No controlled sweep was done.
+  The within-family pattern in iteration 5 (one image per family and level) is stated as an observation, not a measurement.
+  The noise part of the question stays open.
