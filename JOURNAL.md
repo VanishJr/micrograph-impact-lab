@@ -1029,3 +1029,7 @@ The README now notes this, next to the recorded values (69.2 % for the baseline;
 - The repository URL uses the GitHub login of this machine (`VanishJr`); please confirm it.
 - Cesare's GitHub handle is a placeholder.
 - A scan of the tracked files found no API keys and no secret files.
+
+**Hall–Petch line checked by the scientist.**
+"Why it matters" in README.md and SUBMISSION.md now says that grain size strongly affects the strength of metals, and that the smaller the grains, the higher the yield strength (the Hall–Petch relation).
+It no longer says "strength and toughness".

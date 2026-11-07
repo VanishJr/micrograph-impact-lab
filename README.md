@@ -28,7 +28,8 @@ Scratches and pores were found only in part on the testbed, and on real images t
 - **Why it is still open:**
   - Classical segmentation (threshold + watershed) needs hand-tuned parameters per material and image quality.
   - The tuning is manual and rarely reported with error bars against ground truth.
-- **Why it matters:** grain size governs the strength and toughness of metals (Hall–Petch),
+- **Why it matters:** grain size strongly affects the strength of metals.
+  The smaller the grains, the higher the yield strength (the Hall–Petch relation),
   and it is still often measured by hand on optical micrographs.
 - **How a result is checked by computation:** an evaluator compares the pipeline's grains with ground truth.
   - Real 316L stainless steel, against expert grain-boundary masks.
