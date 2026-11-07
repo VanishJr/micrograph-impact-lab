@@ -182,7 +182,7 @@ Recomputed without it: 69.2 %, 43.6 %, 10.7 % and 11.0 % (see JOURNAL.md).
 
 ![10 random 316L holdout images, final config, mask boundaries and program boundaries](docs/ten_random_316L_holdout.png)
 
-*10 random 316L holdout images (seed 7), final config. Thick green = mask boundaries, thin red = program. Counts match results/final_316L/execute.json.*
+*10 random 316L holdout images (seed 7), final config. Green = mask boundaries, red = program. Counts match results/final_316L/execute.json.*
 
 **The final 316L config (iteration 11) was not chosen by the planner.**
 The reviewers of iterations 7 and 8 suggested `fill_boundaries=false`, which matches masks that leave boundary pixels out.
