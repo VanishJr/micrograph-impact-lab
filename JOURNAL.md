@@ -841,3 +841,116 @@ For pores it proposes a smaller `pore_max_area_px` and a stricter darkness test 
 
 **Cost:** iteration 9 $0.26 (planner 26,422 / 2,069 tokens, reviewer 14,472 / 2,730); iteration 10 $0.28 (planner 29,376 / 1,838, reviewer 14,349 / 3,557).
 Iterations 1–10: about $2.90.
+
+## 2026-11-07 15:19 · iteration 11 (run.py)
+
+- Hypothesis: Leaving boundary pixels unassigned (fill_boundaries=false), as the 316L masks do, lowers max_rel_error below iteration 7's 0.235 on 316L dev; all other params as in iteration 7.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 4.0, 'boundary': 'tophat', 'line_width_px': 15, 'markers': 'hmaxima', 'h_px': 5.0, 'min_area_px': 1500, 'exclude_edge': False, 'fill_boundaries': False}
+- Result: max_rel_error = 0.12586301151517196, target <= 0.1: **fail**
+- Review: accept. Only the narrow hypothesis is supported: that fill_boundaries=false lowers max_rel_error below iteration 7's 0.235. The 10% target is not met.
+
+**What the run shows.** On the same 40 316L dev images, with only fill_boundaries changed, max_rel_error fell from 0.235 to 0.126. The new value is set by median |size error| = 0.126. Median |count error| is 0.111, so count also misses the 0.10 threshold.
+
+**Why the drop is credible.** The mechanism is plausible and is not leakage. Filling boundaries inflated predicted equivalent diameters relative to masks that leave boundary pixels unassigned. Matching that convention is a legitimate alignment with how the ground truth is defined, not tuning to the dev images. I have not seen iteration 7's per-image output, so 'all else equal' rests on the plan. Confidence that the change itself caused the drop: about 80%.
+
+**Remaining biases.**
+- Median count bias is +0.065 and median size bias is −0.089. Predicted grains are both too many and too small.
+- The 15 px top-hat band leaves a wider unassigned strip than the thin expert boundaries, which shrinks grains.
+- The median hides severe outliers:
+  - B_04_01: mean_eq_true is 23 px for 11 grains against 102 px predicted (+342%). This looks like a broken or unusual ground-truth mask, not a segmentation failure.
+  - F_02_03: n_true 6 vs n_pred 18, and size is undefined.
+  - C_01_02: count +82%.
+  - RG3_2_3: count +67%.
+
+**Failure modes in the overlays.**
+- **RG20_3_2: pores cause over-splitting.** Straight watershed lines run through and between pores and cut single grains:
+  - The large central grain is split by lines through the pore near (183,172) and down to about (215,260).
+  - The large dark pore at about (315,183) anchors further splits.
+  - The lower-left grains (x 90–180, y 300–390) are cut by straight vertical or diagonal lines. Some may follow polishing scratches.
+- **U_03_03:** a vertical split runs from the pore at about (165,15) down to (165,70), plus a spurious horizontal line near y=95 at the left edge.
+- **B_04_01:** grain outlines follow the dark interparticle regions well. Pores inside grains (about (100,65), (155,100), (185,100), (270,72), (350,235)) are traced as holes, which slightly reduces grain area. The large B_04_01 error therefore comes from the ground truth, not the contours.
+
+**What the data cannot answer yet.** Scratches and pores are not detected or excluded in this run, and no corruption-level breakdown exists for the real images. The noise-degradation and defect-robustness parts of the research question remain unanswered.
+- Next: Change one parameter: h_px 5.0 -> 7.0. This suppresses spurious h-maxima markers created by pores and scratches, so fewer watershed lines are drawn through pore centres. The expected effects are a lower count bias (+0.065 toward 0) and a higher predicted size (bias −0.089 toward 0); both errors move the right way.
+
+If count still exceeds 0.10 but size improves, try line_width_px 15 -> 11 next, as a separate run. This thins the unassigned boundary band so predicted areas better match the thin expert boundaries.
+
+In parallel, before the next tuning step:
+- Inspect the B_04_01 and F_02_03 ground-truth masks. A 23 px mean diameter for 11 grains, and an undefined size, suggest label or connectivity errors. If they are corrupt, flag them for exclusion so they are not used to justify parameter changes. This does not change the median metric now, but it matters for any mean-based or holdout report.
+- Expect no parameter value to fully fix the pore-anchored splits. That needs a defect-handling step that the current watershed lacks: detect dark compact blobs (pores) and fill or inpaint them with local grain intensity before the top-hat and marker steps, and mask linear scratches.
+
+Keep the holdout split untouched until the dev metrics on both count and size are at or below 0.10.
+- Outputs: [results/iter_011/](results/iter_011/)
+
+## 2026-11-07 15:20 · iteration 12 (run.py)
+
+- Hypothesis: Adding the long-scratch filter of synthetic iteration 10 (high precision there), scaled to the 400 px image width (450 px of 1024 -> 175 px), to the best 316L config (iteration 11) lowers max_rel_error below 0.126 by keeping straight polishing scratches from splitting grains; 316L has no defect ground truth, so only the grain errors and the drawings can show it.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 4.0, 'boundary': 'tophat', 'line_width_px': 15, 'markers': 'hmaxima', 'h_px': 5.0, 'min_area_px': 1500, 'exclude_edge': False, 'fill_boundaries': False, 'detect_scratches': True, 'scratch_min_length_px': 175}
+- Result: max_rel_error = 0.16666666666666666, target <= 0.1: **fail**
+- Review: reject. The hypothesis predicted that adding the scratch filter would push max_rel_error below 0.126, the best 316L result so far (iteration 11). It went up to 0.167 instead. The median count error is 0.167 with a median count bias of +0.167, so grains are being over-split. Median size error is 0.121 with a median size bias of −0.02. This misses both the hypothesis and the 0.10 target. I'm about 85% confident the scratch filter is harmful rather than neutral. Iteration 11's per-component numbers are not shown here, so I can't attribute the whole 0.04 rise to the filter with certainty.
+
+The overlays show why. The blue "scratches" are mostly false positives:
+- In U_03_03 there is a starburst of dozens of long lines radiating through grain interiors and the dark intergranular regions.
+- In RG20_3_2 there are dense crossing bundles across the lower half and the right column.
+- In B_04_01 there are long horizontal and vertical lines running along grain boundaries and through the black interstitial phase.
+
+The real polishing scratches are the fine parallel diagonal striations inside the grains, most visible in B_04_01 and U_03_03, and the detector largely misses them. Scaling the 450 px length from the synthetic images down to 175 px clearly does not carry the detector's precision over to real images. It is responding to boundary segments and contrast edges, not to thin straight scratches.
+
+Segmentation failures visible in the red contours:
+- Over-splitting: the large central grain of RG20_3_2 is cut by a contour that runs from the pore at its centre. Several grains in U_03_03 are divided along faint internal lines that look like twins or scratches.
+- Pores are not detected; no yellow appears. Etch pits and pores (the dark round spots in all three images) get their own small contours or anchor split lines.
+- Merging: in the upper-left and right of U_03_03, some boundaries between touching grains are missed.
+
+There is also a bigger warning sign in the per-image numbers. Predicted mean equivalent diameter stays near 75–95 px on almost every image, while the true value ranges from 52 to 123 px. The size output is being set by sigma, h_px and min_area_px rather than by the image. The median size error of about 0.12 is therefore partly luck, and grain-size differences between images are not being resolved.
+
+Two images have ground-truth problems:
+- B_04_01 has n_true=11 but a true mean equivalent diameter of 23 px. That is not physically consistent with the image and suggests the mask is mostly unlabelled; its size error is +313%.
+- F_02_03 has an undefined true size.
+
+Because the metric is a median, these two outliers do not drive the result, but they should be flagged. No leakage is apparent. With n=40 the medians are reasonably stable, but this dev split has now been tuned on repeatedly, so overfitting to dev is a growing risk.
+- Next: 1) Revert to the iteration-11 config with detect_scratches true -> false, and rerun it to confirm that 0.126 baseline under the current code. 2) If scratch handling is kept, make the detector specific to thin straight lines:
+- scratch_min_length_px 175 -> 300, because real scratches either span the field or are short striations that are better ignored.
+- If the method exposes width or straightness limits, set the maximum line width to about 3 px and require a collinearity residual under 1 px. This stops grain boundaries and the edges of the dark phase from being accepted.
+- Use the scratch mask only to suppress the top-hat boundary response; do not cut grains along it.
+If the existing method cannot do this, a directional line detector is needed, such as an oriented Gabor or Radon filter tuned to one dominant polishing direction per image, rather than a long-segment Hough-type filter. 3) Enable pore detection with an area of about 20–300 px and circularity above 0.7. Inpaint the pores before the boundary filter so they stop seeding split lines. 4) To bring down the +17% count bias, raise h_px 5.0 -> 7.0 to merge the extra maxima from twin and scratch splits, and leave sigma at 4.0 and min_area_px at 1500. Then check whether predicted mean size starts to track true size across images, reporting the correlation and not just the median error. 5) Exclude or fix the ground-truth masks for B_04_01 and F_02_03 before any holdout run, and record that change.
+- Outputs: [results/iter_012/](results/iter_012/)
+
+## 2026-11-07 15:21 · 316L iterations 11–12 (fixed by the outer loop); tuning stopped; choice of the final configs
+
+**Request (developer, 15:17):** two 316L dev iterations, one after the other:
+- one testing `fill_boundaries=false`;
+- one adding the iteration-10 long-scratch filter to the best 316L config, so the defect work is tried on real images once.
+
+Then stop tuning at 15:35 and run `--final` on both datasets by 15:45.
+`what_the_method_does.png` is gitignored: it shows a synthetic holdout image.
+
+The planner cannot be told which experiment to run, so `run.py --params` was added.
+It runs one iteration with params fixed by the outer loop, through the usual execute, verify (reviewer) and record steps.
+`plan.json` marks such iterations `fixed_by_outer_loop` (test in `tests/test_loop.py`).
+
+| Iteration | Params | max_rel_error | Count error (bias) | Size error (bias) | Reviewer |
+|---|---|---|---|---|---|
+| 7 | sigma 4, top-hat 15, h-maxima h 5, min area 1500, `fill_boundaries=true` | 0.235 | 0.235 (+0.235) | 0.114 (+0.025) | reject |
+| [11](results/iter_011/) | iteration 7 with `fill_boundaries=false` | **0.126** | 0.111 (+0.065) | 0.126 (−0.089) | **accept** (narrow hypothesis) |
+| [12](results/iter_012/) | iteration 11 + `detect_scratches`, `scratch_min_length_px` 175 | 0.167 | 0.167 (+0.167) | 0.121 (−0.022) | reject |
+
+- **Iteration 11.** Matching the masks' convention (boundary pixels belong to no grain) nearly halved the error.
+  The reviewer accepted that narrow claim: it is an alignment with how the ground truth is defined, not leakage.
+  The 10 % target is still missed, on both count (0.111) and size (0.126).
+- **Iteration 12.** The scratch threshold was scaled from 450 px on 1024 px images to 175 px on these 400 px images.
+  It marked 1,233 scratch pieces in all 40 images, with a median length of 24 px (`outputs/defects.csv`).
+  The reviewer saw starbursts of false lines through grain interiors and dark boundary bands.
+  Cause: with `line_width_px` 15, the top-hat line map contains the wide boundary bands.
+  316L has no defect ground truth, so precision cannot be measured; the grain error got worse.
+  **On real images, the scratch filter as built hurts.**
+
+**Cost:** about $0.10 each (reviewer only; iteration 11: 10,382 / 3,021 tokens, iteration 12: 10,517 / 2,705).
+Iterations 1–12: about $3.10.
+
+**Tuning stopped at 15:21.**
+Configs for `run.py --final`, by the rule set in advance (lowest dev `max_rel_error`, read from `execute.json`):
+
+| Dataset | Iteration | max_rel_error | Params | Notes |
+|---|---|---|---|---|
+| synthetic | 10 | 0.061 | sigma 2, top-hat 4, h-maxima h 3, min area 80, `fill_boundaries=true`, `detect_scratches` with min length 450, no pores | it also has the lowest worst-family error of the defect runs, 0.150 (elongated) |
+| 316L | 11 | 0.126 | sigma 4, top-hat 15, h-maxima h 5, min area 1500, `fill_boundaries=false`, no defect detection | |

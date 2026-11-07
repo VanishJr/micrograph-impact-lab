@@ -23,7 +23,7 @@ from src.state import State, write_json
 log = logging.getLogger("run")
 
 
-def iterate(cfg: dict, claude: Claude, state: State) -> dict:
+def iterate(cfg: dict, claude: Claude, state: State, fixed_plan: dict | None = None) -> dict:
     it_dir = state.start_iteration()
     root = logging.getLogger()
     root.setLevel(min(root.level, logging.INFO))
@@ -33,7 +33,10 @@ def iterate(cfg: dict, claude: Claude, state: State) -> dict:
     claude.usage = []
     try:
         log.info("iteration %d", state.iteration)
-        p = plan.run(cfg, claude, state, it_dir)
+        if fixed_plan:
+            p = plan.fixed(cfg, fixed_plan["method"], fixed_plan["params"], fixed_plan["hypothesis"], it_dir)
+        else:
+            p = plan.run(cfg, claude, state, it_dir)
         lit = literature.run(cfg, claude, p, it_dir, state.history)
         ex = execute.run(cfg, p, it_dir)
         v = verify.run(cfg, claude, p, lit, ex, it_dir)
@@ -43,7 +46,7 @@ def iterate(cfg: dict, claude: Claude, state: State) -> dict:
         handler.close()
 
 
-def run_loop(cfg: dict, n: int, dry_run: bool) -> list[dict]:
+def run_loop(cfg: dict, n: int, dry_run: bool, fixed_plan: dict | None = None) -> list[dict]:
     state = State.load(cfg["paths"]["results"])
     claude = Claude(cfg, dry_run=dry_run)
     summaries = []
@@ -51,7 +54,7 @@ def run_loop(cfg: dict, n: int, dry_run: bool) -> list[dict]:
         if state.iteration >= cfg["limits"]["max_iterations"]:
             log.info("max_iterations=%d reached, stopping", cfg["limits"]["max_iterations"])
             break
-        s = iterate(cfg, claude, state)
+        s = iterate(cfg, claude, state, fixed_plan)
         summaries.append(s)
         print(f"iteration {s['iteration']}: {s['metric']} = {s['value']} (target {s['target']}) "
               f"{'pass' if s['passed'] else 'fail'}, review: {s['review']}")
@@ -114,6 +117,9 @@ def main(argv=None) -> None:
     parser.add_argument("--dry-run", action="store_true", help="no API calls; canned answers, separate results dir")
     parser.add_argument("--final", action="store_true", help="run the best dev iteration once on the holdout split")
     parser.add_argument("--dataset", choices=["synthetic", "316L"], help="override eval.dataset in config.yaml")
+    parser.add_argument("--params", help="skip the planner: run the method with these params (JSON object)")
+    parser.add_argument("--method", default="watershed", help="method for --params (default watershed)")
+    parser.add_argument("--hypothesis", default="Set by the outer loop.", help="hypothesis recorded with --params")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -126,7 +132,10 @@ def main(argv=None) -> None:
     if args.final:
         final(cfg)
         return
-    run_loop(cfg, args.n, args.dry_run)
+    fixed_plan = None
+    if args.params:
+        fixed_plan = {"method": args.method, "params": json.loads(args.params), "hypothesis": args.hypothesis}
+    run_loop(cfg, args.n, args.dry_run, fixed_plan)
 
 
 if __name__ == "__main__":

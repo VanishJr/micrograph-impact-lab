@@ -1,0 +1,9 @@
+[
+  {
+    "role": "reviewer",
+    "model": "claude-opus-5-5",
+    "input_tokens": 10517,
+    "output_tokens": 2705,
+    "web_search_requests": 0
+  }
+]

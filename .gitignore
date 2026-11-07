@@ -25,3 +25,6 @@ results/final_synthetic/outputs/overlays/
 
 # Local shell file with the API key: never commit it
 .zshrc
+
+# Shows a synthetic holdout image: not redistributed
+what_the_method_does.png

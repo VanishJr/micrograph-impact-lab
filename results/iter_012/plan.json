@@ -1,0 +1,23 @@
+{
+  "hypothesis": "Adding the long-scratch filter of synthetic iteration 10 (high precision there), scaled to the 400 px image width (450 px of 1024 -> 175 px), to the best 316L config (iteration 11) lowers max_rel_error below 0.126 by keeping straight polishing scratches from splitting grains; 316L has no defect ground truth, so only the grain errors and the drawings can show it.",
+  "rationale": "Set by the outer loop with run.py --params, not chosen by the planner.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 4.0, \"boundary\": \"tophat\", \"line_width_px\": 15, \"markers\": \"hmaxima\", \"h_px\": 5.0, \"min_area_px\": 1500, \"exclude_edge\": false, \"fill_boundaries\": false, \"detect_scratches\": true, \"scratch_min_length_px\": 175}",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 4.0,
+    "boundary": "tophat",
+    "line_width_px": 15,
+    "markers": "hmaxima",
+    "h_px": 5.0,
+    "min_area_px": 1500,
+    "exclude_edge": false,
+    "fill_boundaries": false,
+    "detect_scratches": true,
+    "scratch_min_length_px": 175
+  },
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "fixed_by_outer_loop": true
+}

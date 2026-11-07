@@ -1,0 +1,7 @@
+2026-11-07 15:19:37,628 INFO run: iteration 12
+2026-11-07 15:19:37,629 INFO src.plan: plan (fixed): Adding the long-scratch filter of synthetic iteration 10 (high precision there), scaled to the 400 px image width (450 px of 1024 -> 175 px), to the best 316L config (iteration 11) lowers max_rel_error below 0.126 by keeping straight polishing scratches from splitting grains; 316L has no defect ground truth, so only the grain errors and the drawings can show it. -> watershed({'denoise': 'gaussian', 'sigma': 4.0, 'boundary': 'tophat', 'line_width_px': 15, 'markers': 'hmaxima', 'h_px': 5.0, 'min_area_px': 1500, 'exclude_edge': False, 'fill_boundaries': False, 'detect_scratches': True, 'scratch_min_length_px': 175})
+2026-11-07 15:19:37,629 INFO src.literature: literature: skipped (first_only), reusing iter_006 notes for 316L
+2026-11-07 15:20:14,309 INFO src.execute: execute: ok=True metrics={'median_count_rel_error': 0.16666666666666666, 'median_size_rel_error': 0.12053618425184416, 'median_count_bias': 0.16666666666666666, 'median_size_bias': -0.021575741010499177, 'n_images': 40, 'n_images_size': 39, 'max_rel_error': 0.16666666666666666}
+2026-11-07 15:20:45,738 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 15:20:45,770 INFO src.verify: verify: max_rel_error = 0.16666666666666666 (target <= 0.1), passed=False
+2026-11-07 15:20:45,771 INFO src.record: record: iteration 12 saved

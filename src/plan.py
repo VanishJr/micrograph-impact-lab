@@ -32,6 +32,27 @@ def schema() -> dict:
     }
 
 
+def fixed(cfg: dict, method: str, params: dict, hypothesis: str, it_dir: Path) -> dict:
+    """A plan set by the outer loop (developer or Claude Code session) instead of the planner."""
+    if method not in methods.METHODS:
+        raise ValueError(f"unknown method {method!r}")
+    target = cfg["target"]
+    plan = {
+        "hypothesis": hypothesis,
+        "rationale": "Set by the outer loop with run.py --params, not chosen by the planner.",
+        "method": method,
+        "params_json": json.dumps(params),
+        "params": params,
+        "metric": target["metric"],
+        "threshold": target["threshold"],
+        "direction": target["direction"],
+        "fixed_by_outer_loop": True,
+    }
+    write_json(it_dir / "plan.json", plan)
+    log.info("plan (fixed): %s -> %s(%s)", hypothesis, method, params)
+    return plan
+
+
 def run(cfg: dict, claude: Claude, state: State, it_dir: Path) -> dict:
     history = state.history[-cfg["limits"]["history_in_prompt"] :]
     target = cfg["target"]

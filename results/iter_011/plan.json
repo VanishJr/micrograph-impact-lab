@@ -1,0 +1,21 @@
+{
+  "hypothesis": "Leaving boundary pixels unassigned (fill_boundaries=false), as the 316L masks do, lowers max_rel_error below iteration 7's 0.235 on 316L dev; all other params as in iteration 7.",
+  "rationale": "Set by the outer loop with run.py --params, not chosen by the planner.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 4.0, \"boundary\": \"tophat\", \"line_width_px\": 15, \"markers\": \"hmaxima\", \"h_px\": 5.0, \"min_area_px\": 1500, \"exclude_edge\": false, \"fill_boundaries\": false}",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 4.0,
+    "boundary": "tophat",
+    "line_width_px": 15,
+    "markers": "hmaxima",
+    "h_px": 5.0,
+    "min_area_px": 1500,
+    "exclude_edge": false,
+    "fill_boundaries": false
+  },
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "fixed_by_outer_loop": true
+}

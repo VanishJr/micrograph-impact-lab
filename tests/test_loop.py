@@ -165,3 +165,13 @@ def test_best_dev_iteration_reads_max_rel_error_from_execute_json(tmp_path):
         {"iteration": 2, "dataset": "synthetic", "metric": "worst_family_rel_error", "value": 0.18},
     ]
     assert run.best_dev_iteration(tmp_path, history, "synthetic")["iteration"] == 2
+
+
+def test_the_outer_loop_can_fix_the_params_of_one_iteration(cfg):
+    state = State.load(cfg["paths"]["results"])
+    fixed = {"method": "watershed", "params": {"fill_boundaries": False}, "hypothesis": "h"}
+    summary = run.iterate(cfg, Claude(cfg, dry_run=True), state, fixed)
+
+    plan_json = json.loads((cfg["paths"]["results"] / "iter_001" / "plan.json").read_text())
+    assert plan_json["params"] == {"fill_boundaries": False} and plan_json["fixed_by_outer_loop"] is True
+    assert summary["metric"] == "max_rel_error" and summary["params"] == {"fill_boundaries": False}

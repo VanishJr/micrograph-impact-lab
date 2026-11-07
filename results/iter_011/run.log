@@ -1,0 +1,7 @@
+2026-11-07 15:18:30,411 INFO run: iteration 11
+2026-11-07 15:18:30,411 INFO src.plan: plan (fixed): Leaving boundary pixels unassigned (fill_boundaries=false), as the 316L masks do, lowers max_rel_error below iteration 7's 0.235 on 316L dev; all other params as in iteration 7. -> watershed({'denoise': 'gaussian', 'sigma': 4.0, 'boundary': 'tophat', 'line_width_px': 15, 'markers': 'hmaxima', 'h_px': 5.0, 'min_area_px': 1500, 'exclude_edge': False, 'fill_boundaries': False})
+2026-11-07 15:18:30,411 INFO src.literature: literature: skipped (first_only), reusing iter_006 notes for 316L
+2026-11-07 15:18:43,039 INFO src.execute: execute: ok=True metrics={'median_count_rel_error': 0.1111111111111111, 'median_size_rel_error': 0.12586301151517196, 'median_count_bias': 0.06512605042016806, 'median_size_bias': -0.08908627787303212, 'n_images': 40, 'n_images_size': 39, 'max_rel_error': 0.12586301151517196}
+2026-11-07 15:19:17,234 INFO httpx2: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-11-07 15:19:17,271 INFO src.verify: verify: max_rel_error = 0.12586301151517196 (target <= 0.1), passed=False
+2026-11-07 15:19:17,273 INFO src.record: record: iteration 11 saved
