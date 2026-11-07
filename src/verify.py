@@ -59,6 +59,7 @@ Automatic checks:
 {json.dumps(verdict, indent=2, ensure_ascii=False, default=str)}
 
 The attached images ({len(overlays)}) show the segmentation as red grain contours
+(and, when defect detection is on, detected scratches in blue and pores in yellow)
 on dev images at low, middle and high corruption: {", ".join(Path(o).stem for o in overlays) or "none"}.
 
 Does the result support the hypothesis?

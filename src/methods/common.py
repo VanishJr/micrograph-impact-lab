@@ -35,14 +35,20 @@ def save_labels(labels: np.ndarray, path: Path) -> None:
     Image.fromarray(labels.astype(np.uint16)).save(path)
 
 
-def save_overlay(image: np.ndarray, labels: np.ndarray, path: Path) -> Path:
-    """Red grain contours over the image, as JPEG (quality 85, at most 1024 px wide)."""
+def save_overlay(image: np.ndarray, labels: np.ndarray, path: Path, defects: np.ndarray | None = None) -> Path:
+    """Red grain contours over the image, as JPEG (quality 85, at most 1024 px wide).
+
+    With a defect map: value 1 (scratch) drawn blue, value 2 (pore) yellow.
+    """
     if image.ndim == 2:
         rgb = np.stack([image] * 3, axis=-1)
     else:
         rgb = image[..., :3].copy()
     rgb = rgb.astype(np.uint8)
     rgb[find_boundaries(labels, mode="inner")] = (255, 0, 0)
+    if defects is not None:
+        rgb[defects == 1] = (0, 90, 255)
+        rgb[defects == 2] = (255, 220, 0)
     out = Image.fromarray(rgb)
     if out.width > OVERLAY_MAX_WIDTH:
         out = out.resize((OVERLAY_MAX_WIDTH, round(out.height * OVERLAY_MAX_WIDTH / out.width)))

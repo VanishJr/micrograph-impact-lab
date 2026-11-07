@@ -1,0 +1,23 @@
+{
+  "hypothesis": "With the iteration-5 settings held fixed (gaussian sigma=2, tophat line_width_px=4, hmaxima h_px=3, min_area_px=80, exclude_edge=false, fill_boundaries=true), turning on only the scratch detector at scratch_min_length_px=450 (pores off) will give these results on synthetic dev. (1) Pooled max_rel_error stays <= 0.10. (2) columnar_duplex median count bias returns to within 4 points of its iteration-5 value of -5.7%, i.e. between -10% and -2%. (3) Scratch precision rises from 0.39 to >= 0.6, with fewer than 150 false scratch objects. Scratch detection rate stays >= 0.35. (4) equiaxed_single median count bias is between +10% and +18%. The pores-off run will therefore show how much of iteration 9's equiaxed and elongated shift came from the scratch detector and how much from the pore detector. (5) worst_family_rel_error falls from 0.183 to between 0.10 and 0.17, with equiaxed_single the worst family.",
+  "rationale": "Iteration 9 turned on both defect detectors together. The pooled metric passed (0.075), but columnar_duplex collapsed to -18%. The overlays show why: chains of collinear horizontal boundaries 200-450 px long were taken as scratches (379 false objects, precision 0.39). Elongated also flipped sign, and the pore detector fired about 73 times per image on triple junctions. Because both detectors changed at once, neither effect can be attributed.\n\nThis run removes one confound. Only the scratch detector is on, and its length threshold is raised above the length of the false boundary chains. The real scratches seen in the overlays span about 600-800 px, for example (350,700)->(810,90), so they should still be detected. This directly tests the research question's third part for scratches. If columnar recovers and precision rises while the real long scratches are still caught, a length threshold is enough to keep scratches from corrupting grain measurements. If columnar still loses grains, or the long scratches are missed, then no parameter of the current detector can separate scratches from aligned boundaries. In that case a new scratch criterion has to be written, using intensity polarity, a width thinner than the boundaries, and a requirement that the line crosses grain interiors rather than running along boundary chains.\n\nComparing equiaxed and elongated bias with iteration 5 (no detectors) and iteration 9 (both detectors) also separates the two detectors' contributions. A pores-only ablation at pore_max_area_px=120, with a circularity and minimum-area criterion likely needed, is the next step.\n\nConfidence:\n- pooled <= 0.10: about 80%\n- columnar recovers to -10%..-2%: about 60%\n- scratch precision >= 0.6: about 50%\n- worst_family <= 0.10: about 10%. Equiaxed over-splitting persists and likely needs a new method with a region-adjacency-graph merge of weak-contrast boundaries.\n\nNo noise claim will be made, since by_level has n=1 per cell within each family. A fixed-geometry noise sweep is still missing from the harness. The holdout split stays untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 2.0, \"boundary\": \"tophat\", \"line_width_px\": 4, \"markers\": \"hmaxima\", \"h_px\": 3.0, \"min_area_px\": 80, \"exclude_edge\": false, \"fill_boundaries\": true, \"detect_scratches\": true, \"scratch_min_length_px\": 450, \"detect_pores\": false}",
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "markers": "hmaxima",
+    "h_px": 3.0,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true,
+    "detect_scratches": true,
+    "scratch_min_length_px": 450,
+    "detect_pores": false
+  }
+}

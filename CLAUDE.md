@@ -31,7 +31,8 @@ measuring grains in optical micrographs of metals. **Submission deadline: 17:00 
 The research question (also `question` in [config.yaml](config.yaml) and the Question section of [README.md](README.md)):
 
 > Can an agent loop tune a classical grain segmentation pipeline so that grain count and mean grain size on optical micrographs match ground truth within 10%,
-> and how does accuracy degrade with image noise?
+> and how does accuracy degrade with image noise,
+> and can scratches and pores be detected and kept from corrupting the grain measurements?
 
 Code measures, Claude tunes: a scikit-image pipeline segments and measures,
 the planner chooses parameters, the reviewer reads metrics and contour overlays.

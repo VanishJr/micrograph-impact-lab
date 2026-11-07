@@ -1,0 +1,24 @@
+{
+  "hypothesis": "Adding detect_scratches=true (scratch_min_length_px=200) and detect_pores=true (pore_max_area_px=200) to the best synthetic configuration from iteration 5 (gaussian sigma=2, tophat line_width_px=4, hmaxima h_px=3, min_area_px=80, exclude_edge=false, fill_boundaries=true) keeps pooled max_rel_error <= 0.10 on synthetic dev. It also lowers worst_family_rel_error from 0.183 to <= 0.14, because equiaxed_single and elongated_single median count bias drop by at least 4 points each. columnar_duplex stays within 10%, with no more than 3 points of change from false scratch hits on long straight boundaries. Defect detection reaches scratch_detection_rate >= 0.7 and pore_detection_rate >= 0.6.",
+  "rationale": "**Where things stand.** The harness is back on synthetic dev and now offers defect detection, which is the tool every earlier review asked for. The best synthetic configuration (iteration 5, hmaxima h=3) had pooled max_rel_error 0.066, but worst_family_rel_error was 0.183. equiaxed_single was +18% and elongated_single +15%, and the overlays showed long straight scratches traced as boundaries and pores or rings outlined as grains. Bracketing h_px showed that marker tuning had run out: h=3 already pushed columnar to -5.7%. The open question is therefore whether the residual over-count is caused by defects, which this run tests directly. It also answers the research question's third part: can scratches and pores be detected and kept from corrupting the measurements?\n\n**Design.** All iteration-5 parameters are held fixed, so any shift in family biases comes from defect handling. I turn on both detectors together rather than one at a time, because both target the same residual and the evaluator reports scratch and pore precision and recall separately. I can partly attribute the effect through the per-image defect lists and the per-family bias changes, but not cleanly. If the result is ambiguous, the next step is a one-detector ablation.\n- scratch_min_length_px stays at 200. Columnar and elongated grains are only about 60–120 px long, so their real boundaries should not be mistaken for scratches.\n- pore_max_area_px stays at 200. Pores must also be darker than half the Otsu level, so fine grains of about 200 px² should not be removed.\n\n**Expected outcome and how to read it.**\n- Pooled max_rel_error <= 0.10: about 85% confidence. This is the project target.\n- worst_family_rel_error <= 0.14: about 50%.\n- worst_family_rel_error <= 0.10: about 20%.\n- If equiaxed and elongated barely move while defect detection rates are high, their excess is marker over-splitting, not defects. That would call for a new method with a region-adjacency-graph merge of weak-contrast boundaries.\n- If columnar count turns more negative, the scratch detector is eating real straight boundaries, and scratch_min_length_px should go up.\n- If detection rates are low, the scratch and pore part of the research question gets a negative answer for this detector.\n\n**Limits.** No noise claim will come from pooled corruption levels. I will read by_family[f].by_level only within a family, with n=1 per cell, so at most I can note trends. Holdout and 316L stay untouched.",
+  "method": "watershed",
+  "params_json": "{\"denoise\": \"gaussian\", \"sigma\": 2.0, \"boundary\": \"tophat\", \"line_width_px\": 4, \"markers\": \"hmaxima\", \"h_px\": 3.0, \"min_area_px\": 80, \"exclude_edge\": false, \"fill_boundaries\": true, \"detect_scratches\": true, \"scratch_min_length_px\": 200, \"detect_pores\": true, \"pore_max_area_px\": 200}",
+  "metric": "max_rel_error",
+  "threshold": 0.1,
+  "direction": "<=",
+  "params": {
+    "denoise": "gaussian",
+    "sigma": 2.0,
+    "boundary": "tophat",
+    "line_width_px": 4,
+    "markers": "hmaxima",
+    "h_px": 3.0,
+    "min_area_px": 80,
+    "exclude_edge": false,
+    "fill_boundaries": true,
+    "detect_scratches": true,
+    "scratch_min_length_px": 200,
+    "detect_pores": true,
+    "pore_max_area_px": 200
+  }
+}

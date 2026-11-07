@@ -45,7 +45,7 @@ def add_defects(image: np.ndarray):
     image = image.copy()
     h, w = image.shape
     mask = np.zeros((h, w), np.uint8)
-    for (r0, c0, r1, c1), gray in [((0.13, 0.15, 0.67, 0.75), 40), ((0.87, 0.12, 0.40, 0.82), 230)]:
+    for (r0, c0, r1, c1), gray in [((0.13, 0.15, 0.67, 0.75), 40), ((0.87, 0.12, 0.40, 0.82), 255)]:
         thin = np.zeros((h, w), bool)
         rr, cc = line(int(r0 * h), int(c0 * w), int(r1 * h), int(c1 * w))
         thin[rr, cc] = True

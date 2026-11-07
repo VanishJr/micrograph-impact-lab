@@ -683,3 +683,161 @@ The recorded files are left as they were; this table is the correction.
 
 Iterations 1–8: about $2.36.
 The planner's input grows with the history it sees (up to 10 past iterations).
+
+## 2026-11-07 14:47 · iteration 9 (run.py)
+
+- Hypothesis: Adding detect_scratches=true (scratch_min_length_px=200) and detect_pores=true (pore_max_area_px=200) to the best synthetic configuration from iteration 5 (gaussian sigma=2, tophat line_width_px=4, hmaxima h_px=3, min_area_px=80, exclude_edge=false, fill_boundaries=true) keeps pooled max_rel_error <= 0.10 on synthetic dev. It also lowers worst_family_rel_error from 0.183 to <= 0.14, because equiaxed_single and elongated_single median count bias drop by at least 4 points each. columnar_duplex stays within 10%, with no more than 3 points of change from false scratch hits on long straight boundaries. Defect detection reaches scratch_detection_rate >= 0.7 and pore_detection_rate >= 0.6.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'markers': 'hmaxima', 'h_px': 3.0, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True, 'detect_scratches': True, 'scratch_min_length_px': 200, 'detect_pores': True, 'pore_max_area_px': 200}
+- Result: max_rel_error = 0.07542786706490305, target <= 0.1: **pass**
+- Review: reject. Only the headline criterion passed. Pooled max_rel_error is 0.075, within the 0.10 target. Every other prediction failed, and the pooled pass hides a redistribution of errors rather than an improvement.
+
+1) worst_family_rel_error is still 0.183. The predicted value was <=0.14. The worst family has simply moved from equiaxed to columnar_duplex.
+
+2) columnar_duplex was predicted to move by at most 3 points and stay within 10%. It went from about -5.7% to -18.3%: all 4 images undercount by 15-23%, and size is +8% (+18% on image _01). The overlay of columnar_duplex_00 shows why. Blue 'scratches' run along chains of long, nearly collinear horizontal grain boundaries; there are about 15 such false lines. Real boundaries are being reclassified as defects, so neighbouring grains merge. The real bright diagonal scratch on the left is not detected and is still partly traced in red. The assumption that grains are only 60-120 px long, so boundaries cannot be mistaken for scratches, fails because aligned boundaries form straight runs longer than 200 px.
+
+3) Equiaxed improved from +18% to +10.5%. That is still over 10%, though the predicted drop of at least 4 points did occur. Elongated swung from +15% to -7.3%, which is a sign flip. That pattern fits boundary removal causing merges more than it fits clean defect removal.
+
+4) scratch_detection_rate is 0.47 against a predicted 0.7 (precision 0.39, 379 false objects). pore_detection_rate is 0.64, which nominally passes, but pore precision is 0.17 with 1,763 false objects, about 73 per image. The yellow marks in all three overlays sit on triple junctions and dark boundary segments, not on pores.
+
+5) Remaining failures visible in the overlays:
+- minor_phase_15_04: circular ring artifacts are still traced as red circles, and a long dark diagonal scratch is still traced in red through grain interiors, while the blue detections are on two other lines.
+- duplex_50_02: the vertical scratches are partly caught, but faint white scratches are missed. Short red spurs and closed loops (for example a small circle near the bottom centre) remain.
+
+On the research question, this detector configuration does not show that scratches and pores can be reliably detected. With 1 or 2 detectors toggled together and n=4 per family, attribution is weak, but the direction of the columnar change is unambiguous.
+
+Noise: within families there is no clear trend across corruption levels (n=1 per cell), so no noise claim is supported.
+
+Confidence that the hypothesis as stated is refuted: about 90%.
+- Next: Run a one-detector ablation with all iteration-5 parameters fixed.
+
+(a) Pores only: detect_scratches true -> false, detect_pores=true, pore_max_area_px 200 -> 120. Triple junctions are tiny dark blobs and the visible pores are about 15-20 px discs. This shows whether the equiaxed and elongated shifts come from pore handling.
+
+(b) Scratches only: detect_pores=false, detect_scratches=true, scratch_min_length_px 200 -> 450. The false hits on columnar boundaries are collinear chains of roughly 200-450 px, while the real scratches span most of the frame. Accept the run only if the columnar count moves by no more than 3 points from -5.7%.
+
+Expect that neither parameter can fix the failure. A length threshold cannot separate a scratch from a chain of aligned dark boundaries, and an area threshold plus a darkness test cannot separate a pore from a dark triple junction. The detectors need new criteria:
+- Scratches: intensity polarity, since many scratches are bright while boundaries are dark; constant width thinner than the 4 px boundary; and a requirement that the line crosses grain interiors rather than following boundary chains.
+- Pores: a minimum area of about 60 px and a circularity of at least 0.7.
+- Rings: a Hough-circle or ring detector, which nothing currently handles.
+
+Separately, the equiaxed +10% over-split still calls for the planned region-adjacency-graph merge of weak-contrast boundaries. Keep the holdout and 316L untouched.
+- Outputs: [results/iter_009/](results/iter_009/)
+
+## 2026-11-07 14:48 · iteration 10 (run.py)
+
+- Hypothesis: With the iteration-5 settings held fixed (gaussian sigma=2, tophat line_width_px=4, hmaxima h_px=3, min_area_px=80, exclude_edge=false, fill_boundaries=true), turning on only the scratch detector at scratch_min_length_px=450 (pores off) will give these results on synthetic dev. (1) Pooled max_rel_error stays <= 0.10. (2) columnar_duplex median count bias returns to within 4 points of its iteration-5 value of -5.7%, i.e. between -10% and -2%. (3) Scratch precision rises from 0.39 to >= 0.6, with fewer than 150 false scratch objects. Scratch detection rate stays >= 0.35. (4) equiaxed_single median count bias is between +10% and +18%. The pores-off run will therefore show how much of iteration 9's equiaxed and elongated shift came from the scratch detector and how much from the pore detector. (5) worst_family_rel_error falls from 0.183 to between 0.10 and 0.17, with equiaxed_single the worst family.
+- Method: `watershed` with {'denoise': 'gaussian', 'sigma': 2.0, 'boundary': 'tophat', 'line_width_px': 4, 'markers': 'hmaxima', 'h_px': 3.0, 'min_area_px': 80, 'exclude_edge': False, 'fill_boundaries': True, 'detect_scratches': True, 'scratch_min_length_px': 450, 'detect_pores': False}
+- Result: max_rel_error = 0.06093540064459227, target <= 0.1: **pass**
+- Review: reject. The pooled target is met (max_rel_error 0.061 ≤ 0.10), but two of the pre-registered predictions failed, and one of them is the claim the run was designed to test.
+
+Predictions that held:
+- (1) Pooled error 0.061 is within the 0.10 target.
+- (2) columnar_duplex median count bias is −5.71%, within the predicted −10% to −2%. It is essentially identical to the iteration-5 value (−5.7%). So iteration 9's columnar collapse to −18% came from the scratch detector at a short length threshold, not from the pore detector.
+- (3a) Scratch precision is 0.96 with only 4 false objects, well past ≥0.6 and <150.
+- (4) equiaxed_single median count bias is +13.5%, within +10% to +18%.
+- (5a) worst_family_rel_error is 0.150, within 0.10–0.17.
+
+Predictions that failed:
+- (3b) Scratch detection rate is 0.091 (20 of 219 scratches), far below the required ≥0.35, with pixel recall 0.165. The plan's premise that real scratches span 600–800 px was wrong for most of them. The overlays show many short (100–300 px) bright and dark scratches, especially the vertical white streaks in duplex_50_02. Raising the length threshold therefore buys precision by discarding about 91% of real scratches.
+- (5b) The worst family is elongated_single (+15.0% count bias), not equiaxed_single (+13.5%).
+
+Across iterations 9 and 10, the single length parameter trades precision 0.39 / many false objects against detection 0.09. This meets the plan's own falsification condition: no setting of the current detector separates scratches from aligned boundary chains.
+
+Scratches still corrupt the grain measurements:
+- In minor_phase_15_04, long straight red contours follow the dark diagonal scratches, roughly (810,90)→(500,760) and the parallel lines on the right. These cut grains in two.
+- In duplex_50_02, only the single long line (the blue one) is caught. The vertical white scratches are left in the image, and short spurious red segments appear next to them.
+
+Other failures visible in the overlays:
+- Over-splitting by short vertical red cuts inside elongated grains in columnar_duplex_00, for example around (790,590), (680,645) and (60,280). This matches the positive count bias in elongated and equiaxed images, and size biases of about −8% to −11% there.
+- Ring and pore artifacts segmented as separate small circular grains: (195,185), (0,305), (235,565) and (575,565) in minor_phase_15_04, and (590,575) in duplex_50_02.
+- Hatched multi-line splits near (150,360) in minor_phase_15_04.
+- Pores are left unhandled, since detection is off.
+
+On noise: the worst images are at corruption 0.95 (equiaxed +21.4%, elongated +17.6%). But each family has n=1 per corruption level, and the pooled 0.95 bin holds only 3 images, all from over-splitting families. Level and geometry are confounded, so no degradation-with-noise claim is supported.
+
+The pooled pass adds nothing new; iteration 5 already passed without detectors. I see no leakage, and the metric measures what it claims to measure. Confidence in the reject: about 85%.
+- Next: Stop tuning scratch_min_length_px. Iteration 9 (shorter threshold) gave precision 0.39 and iteration 10 (450) gave detection 0.09; the 200–450 px range overlaps both the false boundary chains and real scratches. Writing a new scratch method is required.
+
+Proposed scratch detector (call it `scratch_ridge`):
+1. Run a multiscale Hessian/Frangi ridge filter at σ = 0.7–1.5 px, so it responds to lines narrower than the ~4 px grain boundaries. Run it separately for bright and dark polarity.
+2. Run a probabilistic Hough transform on the ridge mask. Accept a line only if its perpendicular residual is < 1 px over at least 80 px. Boundary chains bend at triple junctions, so this straightness test should reject them.
+3. Add an interior-crossing test. Along the line, intensity on its two sides should be equal (|left − right| below a threshold) in at least 60% of samples. A grain boundary separates two different grain intensities; a scratch running through a grain does not.
+4. Inpaint the detected scratch pixels before the tophat step, so the watershed never sees them.
+
+Keep detect_pores false while doing this.
+
+In the same run, address elongated and equiaxed over-splitting:
+- Add a region-adjacency-graph merge after the watershed. Merge two neighbours when the mean contrast across their shared boundary is below k·σ_noise (start with k = 2), or when their median intensities differ by less than 4 grey levels.
+- Keep h_px = 3, since columnar and duplex already undercount by 3–6%.
+
+Add harness checks:
+- Report scratch detection rate per length bin (<200, 200–450, >450 px).
+- Add a fixed-geometry noise sweep: the same tessellation rendered at corruption 0.15, 0.35, 0.55, 0.75 and 0.95, with ≥3 seeds per level, so degradation can be measured without the geometry confound.
+
+Success criteria for the next run:
+- Scratch detection ≥ 0.5 with precision ≥ 0.8.
+- columnar_duplex count bias within ±6%.
+- elongated and equiaxed count bias ≤ +8%.
+
+The holdout split stays untouched.
+- Outputs: [results/iter_010/](results/iter_010/)
+
+## 2026-11-07 14:50 · Defect detection (scratches, pores): iterations 9–10
+
+**Scope change (scientist):** finding defects, and where they are, is now a main goal.
+The question gains: "and can scratches and pores be detected and kept from corrupting the grain measurements?"
+
+**Defect ground truth.** `artifact_mask/` of the synthetic set, checked on 12 dev images:
+
+| Code | What it is | Objects | Median size | Notes |
+|---|---|---|---|---|
+| 60 | long thin lines (scratches) | 104 | 418 px long, 2.6 px wide | 41 bright, 63 dark |
+| 120 | small round very dark spots (pores) | 109 | 91 px² | median gray 17; image median 130 |
+| 180 | not scored | — | about 34 px across | meaning unconfirmed |
+| 240 | not scored | — | about 94 px across | meaning unconfirmed |
+
+Only `src/evaluate.py` reads it, and `tests/test_leakage.py` now checks that.
+Scoring:
+- Pixel precision, recall and F1, micro-averaged over dev, with a 2 px tolerance for scratches and none for pores.
+- Object detection rate: true defects touched by a prediction, plus predicted objects that touch no truth.
+- These are reported only; `max_rel_error` stays the target.
+
+**Method.** `watershed` gains `detect_scratches` / `scratch_min_length_px` and `detect_pores` / `pore_max_area_px`, all off by default.
+- Scratches: Hough lines on dark or bright top-hat line maps.
+- Pores: very dark, round, small blobs that survive an opening.
+- Detected pixels leave the boundary map before the watershed.
+- Defects are listed in `outputs/defects.csv` (type, area, length, centroid) and drawn on the overlays: scratches blue, pores yellow.
+
+Tests first ([tests/test_defects.py](tests/test_defects.py)), on a Voronoi micrograph with two planted scratches (one dark, one bright) and three pores:
+both scratches and at least 2 of 3 pores are found, and the evaluator scores a perfect, a 1 px shifted and an empty prediction as expected.
+
+Two fixes came out of the test:
+- Hough fired on 10 votes and measured long lines short; it now needs 50 votes and bridges 10 px gaps.
+- The fixture's bright scratch was as bright as the brightest grains, so it became 255.
+
+**Runs** (`results/iter_009/`, `iter_010/`; both use the iteration-5 grain params):
+
+| Iteration | Defect params | max_rel_error | worst_family_rel_error | Scratch P / R / F1, detected | Pore P / R / F1, detected |
+|---|---|---|---|---|---|
+| 5 (none) | — | 0.066 | 0.183 (equiaxed) | — | — |
+| 9 | scratches ≥ 200 px, pores ≤ 200 px² | 0.075 | 0.183 (columnar) | 0.39 / 0.47 / 0.43, 104 of 219 | 0.17 / 0.46 / 0.25, 148 of 233 |
+| 10 | scratches ≥ 450 px only | **0.061** | 0.150 (elongated) | 0.96 / 0.17 / 0.28, 20 of 219 | off |
+
+Both runs meet the pooled target (`max_rel_error` ≤ 0.10, now the project target, not the planner's).
+The reviewer **rejected** both, because at least one family stays above 10 %.
+
+What the defect detectors did:
+- **Iteration 9.** Removing defects helped equiaxed (count 0.183 → 0.105) and elongated (0.155 → 0.073).
+  But the scratch detector took chains of collinear columnar grain boundaries for scratches, so columnar grains merged (count −5.7 % → −18.3 %).
+  The pore detector found 63 % of pores, with 1,763 false objects, mostly dark triple junctions.
+- **Iteration 10.** Long scratches only: precise (0.96, 4 false objects), but only 9 % of scratches found; columnar recovered (−5.7 %).
+
+The reviewer's conclusion: the 200–450 px length range overlaps both false boundary chains and real scratches, so tuning cannot separate them.
+It proposes a new scratch detector: a thin-ridge (Hessian/Frangi) filter narrower than grain boundaries, then Hough with a straightness residual.
+For pores it proposes a smaller `pore_max_area_px` and a stricter darkness test against triple junctions.
+
+**Answer so far to the defect half of the question (synthetic dev only, testbed):**
+- Scratches and pores can be found in part: at best 47 % of scratches and 64 % of pores, but not precisely enough to help every morphology at once.
+- With the current detector, keeping them out of the grain measurement helps some families and hurts columnar.
+
+**Cost:** iteration 9 $0.26 (planner 26,422 / 2,069 tokens, reviewer 14,472 / 2,730); iteration 10 $0.28 (planner 29,376 / 1,838, reviewer 14,349 / 3,557).
+Iterations 1–10: about $2.90.

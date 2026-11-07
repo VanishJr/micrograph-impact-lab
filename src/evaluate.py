@@ -14,7 +14,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from PIL import Image
+from scipy.ndimage import binary_dilation
 from skimage.measure import label, regionprops
+from skimage.morphology import disk
 
 from src.splits import STEEL_316L, STEEL_316L_FOLDER, SYNTHETIC, load
 
@@ -26,6 +28,10 @@ METRICS_DOC = """The evaluator reports, over the dev images (errors are relative
 - worst_family_rel_error (synthetic only): max over families of max(family median count error, family median size error);
   the pooled medians can pass while one morphology fails.
 - n_images: images scored.
+With detect_scratches / detect_pores on the synthetic set, also (reported, not the target):
+- scratch_f1, pore_f1: pixel F1 against the defect ground truth (2 px tolerance for scratches, none for pores);
+- scratch_detection_rate, pore_detection_rate: fraction of true scratches / pores the method touched.
+Precision, recall and false objects per defect type are in execute.json under "defects".
 Per image errors, and (synthetic) medians per corruption_level and per family are in execute.json;
 by_family[family].by_level shows the noise trend within one morphology (corruption levels mix families)."""
 
@@ -157,6 +163,61 @@ def evaluate(cfg: dict, dataset: str, split: str, predictions: dict, exclude_edg
     """Score predictions {image stem: [grain, ...]} against every image of the split."""
     names = load(cfg)[dataset][split]
     return score(truth(cfg, dataset, split, names), predictions, exclude_edge)
+
+
+# Defect ground truth: artifact_mask/ of the synthetic set. 60 = scratch, 120 = pore;
+# 180 and 240 (round bright spots, large blobs) are not scored, their meaning is unconfirmed.
+DEFECT_CODES = {"scratch": 60, "pore": 120}
+DEFECT_PREDICTED = {"scratch": 1, "pore": 2}  # values in the method's defect maps
+DEFECT_TOLERANCE_PX = {"scratch": 2, "pore": 0}
+
+
+def defect_truth(cfg: dict, dataset: str, names: list[str]) -> dict:
+    """Defect masks per image (synthetic only; 316L has no defect ground truth)."""
+    if dataset != "synthetic":
+        return {}
+    base = Path(cfg["paths"]["dataset"]) / SYNTHETIC / "artifact_mask"
+    return {n: np.array(Image.open(base / f"{n}.png")) for n in names}
+
+
+def score_defects(truth_masks: dict, predicted: dict) -> dict:
+    """Pixel precision / recall / F1 (micro-averaged) and object detection rate, per defect type."""
+    out = {}
+    for kind, code in DEFECT_CODES.items():
+        tol = DEFECT_TOLERANCE_PX[kind]
+
+        def grow(m):
+            return binary_dilation(m, structure=disk(tol)) if tol else m
+
+        tp_p = n_pred = tp_r = n_true = 0
+        objects_true = objects_found = objects_pred = false_objects = 0
+        for name, truth_all in truth_masks.items():
+            truth = truth_all == code
+            pred = predicted.get(name, np.zeros(truth.shape, np.uint8)) == DEFECT_PREDICTED[kind]
+            truth_grown, pred_grown = grow(truth), grow(pred)
+            tp_p += int((pred & truth_grown).sum())
+            n_pred += int(pred.sum())
+            tp_r += int((truth & pred_grown).sum())
+            n_true += int(truth.sum())
+            t_lab, p_lab = label(truth), label(pred)
+            objects_true += int(t_lab.max())
+            objects_found += len(np.unique(t_lab[pred_grown & (t_lab > 0)]))
+            objects_pred += int(p_lab.max())
+            false_objects += int(p_lab.max()) - len(np.unique(p_lab[truth_grown & (p_lab > 0)]))
+        precision = tp_p / n_pred if n_pred else 0.0
+        recall = tp_r / n_true if n_true else 0.0
+        out[kind] = {
+            "precision": precision,
+            "recall": recall,
+            "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
+            "objects_true": objects_true,
+            "objects_detected": objects_found,
+            "detection_rate": objects_found / objects_true if objects_true else None,
+            "objects_predicted": objects_pred,
+            "false_objects": false_objects,
+            "tolerance_px": tol,
+        }
+    return out
 
 
 def representative(cfg: dict, dataset: str, split: str, k: int = 3) -> list[str]:

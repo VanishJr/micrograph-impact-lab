@@ -12,7 +12,8 @@ Team: Ivan Logutov (engineer) and Cesare Garberino (scientist, materials).
 ## Question
 
 > Can an agent loop tune a classical grain segmentation pipeline so that grain count and mean grain size on optical micrographs match ground truth within 10%,
-> and how does accuracy degrade with image noise?
+> and how does accuracy degrade with image noise,
+> and can scratches and pores be detected and kept from corrupting the grain measurements?
 
 - **Why it is still open:** classical segmentation (threshold + watershed) needs hand-tuned parameters per material and image quality;
   the tuning is manual and rarely reported with error bars against ground truth.

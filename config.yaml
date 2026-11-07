@@ -4,7 +4,8 @@
 question: >
   Can an agent loop tune a classical grain segmentation pipeline so that grain count
   and mean grain size on optical micrographs match ground truth within 10%,
-  and how does accuracy degrade with image noise?
+  and how does accuracy degrade with image noise,
+  and can scratches and pores be detected and kept from corrupting the grain measurements?
   Checked by computation: an evaluator compares the pipeline's grains with exact
   per-grain ground truth (synthetic micrographs) and expert grain-boundary masks
   (real 316L stainless steel), on a dev split; a holdout split is used once at the end.

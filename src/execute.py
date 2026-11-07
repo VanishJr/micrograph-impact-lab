@@ -33,6 +33,14 @@ def run(cfg: dict, plan: dict, it_dir: Path, split: str = "dev") -> dict:
         result = METHODS[plan["method"]](images, plan["params"], out_dir, overlay=overlay)
         _write_predictions(result["predictions"], out_dir / "predictions.csv")
         scored = evaluate.evaluate(cfg, dataset, split, result["predictions"], result["exclude_edge"])
+        _write_defects(result.get("defects", {}), out_dir / "defects.csv")
+        defect_maps = result.get("defect_maps") or {}
+        if defect_maps and dataset == "synthetic":
+            defects = evaluate.score_defects(evaluate.defect_truth(cfg, dataset, list(defect_maps)), defect_maps)
+            execution["defects"] = defects
+            for kind, d in defects.items():
+                scored["metrics"][f"{kind}_f1"] = d["f1"]
+                scored["metrics"][f"{kind}_detection_rate"] = d["detection_rate"]
         execution.update(
             ok=True,
             n_images=len(images),
@@ -53,6 +61,13 @@ def run(cfg: dict, plan: dict, it_dir: Path, split: str = "dev") -> dict:
     write_json(it_dir / "execute.json", execution)
     log.info("execute: ok=%s metrics=%s", execution["ok"], execution["metrics"])
     return execution
+
+
+def _write_defects(defects: dict, path: Path) -> None:
+    rows = [{"image": name, **d, "centroid": f"{d['centroid'][0]} {d['centroid'][1]}"}
+            for name, items in defects.items() for d in items]
+    if rows:
+        pd.DataFrame(rows).to_csv(path, index=False)
 
 
 def _write_predictions(predictions: dict, path: Path) -> None:
