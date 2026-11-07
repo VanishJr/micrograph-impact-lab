@@ -1,0 +1,24 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store
+.idea/
+.env
+
+# The dataset stays outside the repository; only data/sample/ is committed.
+data/*
+!data/sample/
+
+# run.py --dry-run output
+results/_dry_run/
+!data/splits.json
+
+# label images can be regenerated from method + params; overlays, predictions.csv and JSON stay
+results/**/labels/
+
+# Overlays of the synthetic set are near-copies of its images, which are not redistributed (provenance unconfirmed).
+# They stay on disk for the reviewer. 316L overlays (CC BY 4.0) are committed.
+results/baseline/synthetic/outputs/overlays/
+results/iter_*/outputs/overlays/
+results/final_synthetic/outputs/overlays/

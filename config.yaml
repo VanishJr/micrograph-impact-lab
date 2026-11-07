@@ -1,0 +1,40 @@
+# Configuration of the research loop. Paths are relative to this file.
+
+# The open question the loop works on. Every Claude call sees it.
+question: >
+  Can an agent loop tune a classical grain segmentation pipeline so that grain count
+  and mean grain size on optical micrographs match ground truth within 10%,
+  and how does accuracy degrade with image noise?
+  Checked by computation: an evaluator compares the pipeline's grains with exact
+  per-grain ground truth (synthetic micrographs) and expert grain-boundary masks
+  (real 316L stainless steel), on a dev split; a holdout split is used once at the end.
+
+# One model per role. Every live run bills the Anthropic API; use --dry-run for development.
+# effort: low | medium | high | xhigh | max (more effort, deeper reasoning, more tokens).
+models:
+  planner: {model: claude-opus-5-5, effort: high}      # picks the next experiment
+  librarian: {model: claude-opus-5-5, effort: medium}  # searches the literature
+  reviewer: {model: claude-opus-5-5, effort: high}     # critiques each result
+
+limits:
+  max_iterations: 20     # total across all runs; run.py stops when results/state.json reaches it
+  max_tokens: 16000      # per Claude call
+  history_in_prompt: 10  # past iterations the planner sees
+  max_searches: 5        # web searches per literature step
+  max_continuations: 3   # resumes of a paused server-tool turn
+
+steps:
+  literature: first_only  # true: every iteration; first_only: iteration 1, later ones reuse its notes; false: never
+  llm_review: true   # let the reviewer judge each result after the automatic checks
+
+# What the inner loop evaluates on. Only the dev split; the holdout is for run.py --final.
+eval:
+  dataset: synthetic             # synthetic | 316L
+  synthetic_variant: corrupted   # corrupted | clean (same ground truth)
+
+paths:
+  # The dataset folder stays outside the repository; MICROGRAPHS_DIR overrides this default.
+  dataset: /Users/vanish/projects/hackathon_micrographs
+  splits: data/splits.json
+  results: results
+  journal: JOURNAL.md
