@@ -15,7 +15,7 @@ Status vocabulary: `TODO` · `IN PROGRESS` · `BLOCKED` · `DONE` · `KILLED` (a
 | T-5 | Scratch and pore detection (scientist: a main goal) | detectors with tests, scored against `artifact_mask` (60, 120); 2 live iterations | DONE: iterations 9–10; scratches ≤ 47 % found (P 0.39) or 9 % (P 0.96); pores 64 % (P 0.17) |
 | T-6 | Thin-ridge scratch detector and stricter pores (reviewer, iteration 10) | Frangi-style ridge filter + straightness check; pore darkness test; tests first | TODO, not today |
 | T-2 | 316L evaluation | with `eval.dataset: 316L`, the loop tunes on the 40 dev images; README reports `max_rel_error` on dev vs the baseline in `results/baseline/316L/` | DONE for today: iterations 6–8, 11–12; best 0.126 (iteration 11) vs baseline 12.9; target 0.10 not met |
-| T-3 | Final holdout run | after tuning, `uv run python run.py --final` once per dataset; `results/final.json` holds dev vs holdout and the gap, reported in README | IN PROGRESS: synthetic → iteration 10, 316L → iteration 11 |
+| T-3 | Final holdout run | after tuning, `uv run python run.py --final` once per dataset; `results/final.json` holds dev vs holdout and the gap, reported in README | DONE: 316L 0.174 (dev 0.126), synthetic 0.046 (dev 0.061) |
 | P-4 | Publish the repository | a public GitHub repository named `micrograph-impact-lab`, with both licence files at the root; no synthetic image in it | TODO |
 | P-5 | Write up and submit | README.md reports the results, failures and limits; the submission issue is filed before 17:00 | TODO; switch to 316L (T-2) by 15:30 |
 

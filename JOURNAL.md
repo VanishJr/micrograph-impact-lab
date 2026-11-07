@@ -954,3 +954,26 @@ Configs for `run.py --final`, by the rule set in advance (lowest dev `max_rel_er
 |---|---|---|---|---|
 | synthetic | 10 | 0.061 | sigma 2, top-hat 4, h-maxima h 3, min area 80, `fill_boundaries=true`, `detect_scratches` with min length 450, no pores | it also has the lowest worst-family error of the defect runs, 0.150 (elongated) |
 | 316L | 11 | 0.126 | sigma 4, top-hat 15, h-maxima h 5, min area 1500, `fill_boundaries=false`, no defect detection | |
+
+## 2026-11-07 15:22 · Final exam: each dataset's best dev config, once on its holdout
+
+`run.py --final --dataset synthetic`, then `--dataset 316L`. Numbers from [results/final.json](results/final.json):
+
+| Dataset | Config | Dev max_rel_error | Holdout max_rel_error | Gap | Holdout count error (bias) | Holdout size error (bias) |
+|---|---|---|---|---|---|---|
+| 316L | iteration 11 | 0.126 (40 images) | **0.174** (165 images, 164 with defined size) | +0.048 | 0.174 (+0.091) | 0.163 (−0.107) |
+| synthetic | iteration 10 | 0.061 (24 images) | **0.046** (12 images) | −0.015 | 0.046 (+0.017) | 0.036 (−0.036) |
+
+More from `final.json`:
+- **Synthetic worst family:** 0.150 on dev, 0.128 on holdout.
+- **Synthetic scratches:** F1 0.28 on dev and 0.42 on holdout; detection rate 0.09 and 0.12. Pores were off.
+
+**Reading:**
+- **316L, the real data.** The 10 % target is not met on the holdout.
+  The error grew by about 5 points from dev to holdout, so part of the dev improvement was fit to the 40 dev images, or the test folder is harder.
+  These data cannot tell which.
+- **Synthetic, the testbed.** The holdout is slightly better than dev. With 12 images, that difference is within noise.
+  It says the tuned config did not overfit the 24 dev images; it is still not evidence about real metals.
+
+The holdout runs are in `results/final_316L/` and `results/final_synthetic/` (synthetic drawings are not committed).
+Each dataset's holdout has now been used, and `run.py --final` refuses to run it again.

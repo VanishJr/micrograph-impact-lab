@@ -15,7 +15,8 @@ Two of six grain morphologies stay above 10 %, so the 10 % target is met on aver
 Noise level showed no detectable trend.
 Scratches and pores were found only in part on the testbed (at best 47 % of scratches, 64 % of pores).
 On real images, the scratch filter as built made things worse.
-Holdout results: [HOLDOUT — filled in after `run.py --final`].
+On the holdout, run once at the end, the 316L error is **0.174** on 165 unseen images, against 0.126 on dev,
+and the synthetic error is 0.046 on 12 images, against 0.061 on dev.
 
 ## Question
 
@@ -161,7 +162,7 @@ Each iteration's reviewer verdict is in its `verify.json`; the reasoning behind 
 | [8](results/iter_008/) | peak markers instead of h-maxima | 0.282 | +0.282 | 0.11 |
 | [11](results/iter_011/) | iteration 7 with `fill_boundaries=false`, matching masks that leave boundary pixels out | **0.126** | +0.065 (median abs 0.111) | 0.126 |
 | [12](results/iter_012/) | iteration 11 + scratch filter (min length 175 px) | 0.167 | +0.167 | 0.12 |
-| holdout (165 images) | best dev config, once | [HOLDOUT] | | |
+| [**holdout**](results/final.json) (165 images) | iteration 11's config, run once | **0.174** | +0.091 (median abs 0.174) | 0.163 |
 
 Two changes did most of the work.
 - Scaling every length to the real grain size (about 80 px): 2.88 → 0.235.
@@ -181,7 +182,7 @@ The scratch filter (iteration 12) marked 1,233 false "scratches" in the wide dar
 | [5](results/iter_005/) | h-maxima h 3 | 0.066 | equiaxed 0.183 |
 | [9](results/iter_009/) | + scratch and pore detection | 0.075 | columnar 0.183 |
 | [10](results/iter_010/) | + long-scratch detection only | **0.061** | elongated 0.150 |
-| holdout (12 images) | best dev config, once | [HOLDOUT] | [HOLDOUT] |
+| [**holdout**](results/final.json) (12 images) | iteration 10's config, run once | **0.046** | 0.128 |
 
 - **The loop at work.** The reviewer saw from the contour drawings that peak markers cut elongated grains into "ladders".
   The outer loop added h-maxima markers (test first), and the columnar error fell from 0.514 to 0.04–0.06.
