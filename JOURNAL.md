@@ -1038,3 +1038,21 @@ It no longer says "strength and toughness".
 **The 175 px scratch threshold of iteration 12** is labelled in the README as what it was:
 an engineering guess (iteration 10's 450 px scaled by image width) that did not transfer.
 It made iteration 12 worse and is not in the final config, so it needs no check by the scientist.
+
+**Synthetic figure published.**
+The scientist agreed to publish `docs/before_after_synthetic.png`, made by the developer from dev image columnar_duplex_00.
+It is committed and shown in the README's synthetic section, captioned as a testbed and not evidence.
+
+Its numbers were checked against `execute.json`:
+
+| Iteration | Grains found (258 true) | Count error | Dev error |
+|---|---|---|---|
+| 1 | 877 | +240 % | 33.3 % |
+| 2 | 383 | +48 % | 7.6 % |
+| 5 | 236 | −8.5 %, shown as −9 % | 6.6 % |
+| 10 | 236 | −8.5 %, shown as −9 % | 6.1 % |
+
+The figure also shows the holdout error, 4.6 %.
+
+The statements that synthetic images are not redistributed now name this figure as the one exception:
+README, SUBMISSION.md, data/sample/README.md and the rule in CLAUDE.md.

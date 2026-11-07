@@ -41,7 +41,8 @@ Claude never estimates sizes from pixels.
 Data, outside the repository (`paths.dataset`, or `MICROGRAPHS_DIR`):
 real 316L stainless steel with expert masks (CC BY 4.0), where the main claim is measured;
 and a synthetic set with exact labels, which is a **tuning testbed, not evidence**
-(AI-generated, no generator code, licence unknown: never copy its files into the repository).
+(AI-generated, no generator code, licence unknown: never copy its files into the repository;
+the one exception is the figure `docs/before_after_synthetic.png`, published with the scientist's agreement).
 
 ## Two loops
 

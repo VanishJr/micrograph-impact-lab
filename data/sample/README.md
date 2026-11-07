@@ -5,7 +5,8 @@ The full dataset stays outside the repository;
 `paths.dataset` in [config.yaml](../../config.yaml), or the environment variable `MICROGRAPHS_DIR`, points at it.
 
 Only files whose licence has been checked are here.
-The synthetic set is not redistributed (provenance unconfirmed, see the Data section of [README.md](../../README.md));
+The synthetic set is not redistributed (provenance unconfirmed, see the Data section of [README.md](../../README.md)),
+except one figure in [docs/](../../docs/) published with the scientist's agreement;
 the tests build their own synthetic micrograph in code ([tests/voronoi.py](../../tests/voronoi.py)).
 
 The two 316L files come from the dataset's `train` folder,

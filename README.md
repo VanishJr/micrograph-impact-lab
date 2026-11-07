@@ -111,6 +111,7 @@ $MICROGRAPHS_DIR/
 - **Provenance:** the scientist generated it on the day with AI prompts and edited it by hand.
   Neither the prompts nor any generator code exist, and its licence is unknown.
   So the images are not redistributed, and no result on them is evidence about real metals.
+  The one exception is the figure below, [docs/before_after_synthetic.png](docs/before_after_synthetic.png), published with the scientist's agreement.
   It is used because its ground truth is exact and it has defect masks.
 - Checked against the files (all 36 complete rows):
   - `n_grains` counts all grains, edge-touching ones included.
@@ -192,6 +193,15 @@ Other observations:
 - The scratch filter (iteration 12) marked 1,233 false "scratches" in the wide dark boundary bands; 316L has no defect ground truth to measure this against.
 
 ### Synthetic testbed (24 dev images, 12 holdout, 6 morphologies)
+
+![The same synthetic dev image (columnar_duplex_00) at three stages: iteration 1, iteration 2, iterations 5 and 10](docs/before_after_synthetic.png)
+
+*Testbed, not evidence: the synthetic images are AI-generated, with no generator code, and say nothing about real metals.*
+*Red: grain boundaries found by the program, on one dev image (columnar_duplex_00); 258 true grains.*
+*Iteration 1 finds 877 (+240 %), with elongated grains cut into "ladders" by peak markers.*
+*Iteration 2 finds 383 (+48 %), after the reviewer's parameter grid.*
+*Iterations 5 and 10 find 236 (−9 %), with h-maxima markers.*
+*Published with the scientist's agreement.*
 
 | Iteration | What changed | max_rel_error (pooled) | Worst family |
 |---|---|---|---|

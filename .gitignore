@@ -28,6 +28,5 @@ results/final_synthetic/outputs/overlays/
 
 # Shows a synthetic holdout image: not redistributed
 what_the_method_does.png
-# Figures of synthetic images: not redistributed. docs/before_after_synthetic.png waits for the scientist's agreement.
+# Figures of synthetic images: not redistributed (docs/before_after_synthetic.png is committed with the scientist's agreement).
 before_after.png
-docs/before_after_synthetic.png
